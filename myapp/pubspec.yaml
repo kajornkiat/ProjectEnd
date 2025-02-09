@@ -1,0 +1,45 @@
+name: myapp
+description: "A new Flutter project."
+
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.6
+  url_launcher: ^6.0.20
+
+  cupertino_icons: ^1.0.8
+
+  emoji_picker_flutter: ^2.1.0 # ตรวจสอบเวอร์ชันล่าสุดใน pub.dev
+  image_picker: ^0.8.7 # ตรวจสอบเวอร์ชันล่าสุดใน pub.dev
+  shared_preferences: ^2.0.13 
+  dropdown_search: ^5.0.6
+  socket_io_client: ^2.0.3+1
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/images/home.png
+    - assets/images/chat.png
+    - assets/images/search.png
+    - assets/images/add_friends.png
+    - assets/images/login.png
+    - assets/images/signup.png
+    - assets/images/1.png
+    - assets/images/2.png
+    - assets/images/9669.jpg
