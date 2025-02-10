@@ -36,18 +36,26 @@ app.use(cors({
     credentials: true
 }));
 
+
 // Middleware สำหรับตรวจสอบ token
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.sendStatus(401);
+    if (!token) {
+        return res.status(401).json({ error: "No token provided" });
+    }
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) {
+            console.error("JWT verification failed:", err);
+            return res.status(403).json({ error: "Invalid token" });
+        }
         req.user = user;
+        console.log("Authenticated User:", user);
         next();
     });
 };
+
 
 // Login Endpoint
 app.post('/api/login', async (req, res) => {
@@ -616,6 +624,8 @@ app.post('/api/reviews', authenticateToken, async (req, res) => {
     try {
         const { category, place_id, review, rating } = req.body;
         const user_id = req.user.id;
+
+        console.log("Incoming review:", req.body);
 
         // ✅ ตรวจสอบค่า category
         const validCategories = ["food", "hotel", "tourist"];

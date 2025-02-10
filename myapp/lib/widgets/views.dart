@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class ViewsPage extends StatefulWidget {
   final String category;
@@ -108,10 +110,21 @@ class _ViewsPageState extends State<ViewsPage> {
   }
 
   Future<void> addReview(String reviewText, double rating) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token'); // ✅ ดึง Token จาก SharedPreferences
+
+    if (token == null) {
+      print("❌ No token found. Please log in.");
+      return;
+    }
+
     final url = Uri.parse("http://10.39.5.96:3000/api/reviews");
     final response = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token", // ✅ ส่ง Token ไปที่ API
+      },
       body: jsonEncode({
         "category": widget.category,
         "place_id": widget.place_id,
@@ -120,21 +133,92 @@ class _ViewsPageState extends State<ViewsPage> {
       }),
     );
 
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200) {
+      print("✅ Review added successfully!");
       reviewController.clear();
     } else {
-      print("Failed to add review: ${response.statusCode}");
+      print("❌ Failed to add review: ${response.body}");
     }
   }
 
+  void _showReviewPopup() {
+    double userRating = 0.0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Write a Review'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: reviewController,
+                decoration: InputDecoration(
+                  hintText: 'Write your review here...',
+                ),
+              ),
+              SizedBox(height: 16),
+              Text('Rate this place:'),
+              RatingBar.builder(
+                initialRating: 0,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: false,
+                itemCount: 5,
+                itemBuilder: (context, _) => Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                ),
+                onRatingUpdate: (rating) {
+                  userRating = rating;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (reviewController.text.isNotEmpty) {
+                  addReview(reviewController.text, userRating);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> deleteReview(int reviewId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token'); // ✅ ดึง Token จาก SharedPreferences
+
+    if (token == null) {
+      print("❌ No token found. Please log in.");
+      return;
+    }
+
     final url = Uri.parse("http://10.39.5.96:3000/api/reviews/$reviewId");
-    final response = await http.delete(url);
+    final response = await http.delete(
+      url,
+      headers: {
+        "Authorization": "Bearer $token", // ✅ ส่ง Token ไปที่ API
+      },
+    );
 
     if (response.statusCode == 200) {
-      print("Review deleted successfully!");
+      print("✅ Review deleted successfully!");
     } else {
-      print("Failed to delete review: ${response.statusCode}");
+      print("❌ Failed to delete review: ${response.body}");
     }
   }
 
@@ -152,154 +236,141 @@ class _ViewsPageState extends State<ViewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        // ✅ ห่อทั้งหน้าให้เลื่อนขึ้นลงได้
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🌆 ส่วนแสดงรูปภาพของสถานที่
-            SizedBox(
-              height: 500, // ✅ กำหนดความสูงให้รูปภาพ
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(30),
-                      bottomRight: Radius.circular(30),
-                    ),
-                    child: Image.network(
-                      widget.imageUrl,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(child: Icon(Icons.broken_image));
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    left: 10,
-                    top: 40,
-                    child: IconButton(
-                      icon:
-                          Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 🏷 ชื่อสถานที่
-                  Row(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🌆 ส่วนแสดงรูปภาพของสถานที่
+                SizedBox(
+                  height: 500,
+                  width: double.infinity,
+                  child: Stack(
                     children: [
-                      Expanded(
-                        child: Text(
-                          widget.name,
-                          style: TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
+                      ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(30),
+                          bottomRight: Radius.circular(30),
+                        ),
+                        child: Image.network(
+                          widget.imageUrl,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(child: Icon(Icons.broken_image));
+                          },
                         ),
                       ),
+                      Positioned(
+                        left: 10,
+                        top: 40,
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back,
+                              color: Colors.white, size: 30),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
-                          Icon(Icons.star, color: Colors.yellow, size: 18),
-                          SizedBox(width: 5),
-                          Text(
-                            averageRating.toStringAsFixed(1),
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Expanded(
+                            child: Text(
+                              widget.name,
+                              style: TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          SizedBox(width: 5),
-                          Text("($reviewCount Reviews)",
-                              style: TextStyle(color: Colors.grey)),
+                          Row(
+                            children: [
+                              Icon(Icons.star, color: Colors.yellow, size: 18),
+                              SizedBox(width: 5),
+                              Text(
+                                averageRating.toStringAsFixed(1),
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(width: 5),
+                              Text("($reviewCount Reviews)",
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-
-                  // 📌 จังหวัด และ Show Map (อยู่ขวาสุด)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(widget.province,
-                          style: TextStyle(fontSize: 16, color: Colors.blue)),
-                      TextButton(
-                        onPressed: _openMap,
-                        child: Text("Show map",
-                            style: TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(widget.province,
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.blue)),
+                          TextButton(
+                            onPressed: _openMap,
+                            child: Text("Show map",
+                                style: TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-
-                  SizedBox(height: 10),
-                  // 📜 คำอธิบายสถานที่
-                  Text(widget.description),
-                  SizedBox(height: 10),
-
-                  Divider(),
-
-                  // 📝 หัวข้อ Reviews
-                  Text("Reviews",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-
-                  // 🔄 แสดงรายการรีวิว
-                  ListView.builder(
-                    shrinkWrap: true, // ✅ ให้มันขยายตามเนื้อหา
-                    physics:
-                        NeverScrollableScrollPhysics(), // ✅ ปิดสกรอล์ในตัว ListView
-                    itemCount: reviews.length,
-                    itemBuilder: (context, index) {
-                      final review = reviews[index];
-                      return ListTile(
-                        leading:
-                            CircleAvatar(child: Icon(Icons.person, size: 20)),
-                        title: Text(review['username']),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: List.generate(
-                                review['rating'],
-                                (index) => Icon(Icons.star,
-                                    color: Colors.yellow, size: 16),
-                              ),
+                      SizedBox(height: 10),
+                      Text(widget.description),
+                      SizedBox(height: 10),
+                      Divider(),
+                      Text("Reviews",
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        itemCount: reviews.length,
+                        itemBuilder: (context, index) {
+                          final review = reviews[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                                child: Icon(Icons.person, size: 20)),
+                            title: Text(review['username']),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: List.generate(
+                                    review['rating'],
+                                    (index) => Icon(Icons.star,
+                                        color: Colors.yellow, size: 16),
+                                  ),
+                                ),
+                                Text(review['review']),
+                              ],
                             ),
-                            Text(review['review']),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  // ✍🏻 ช่องป้อนรีวิว
-                  TextField(
-                    controller: reviewController,
-                    decoration: InputDecoration(
-                      hintText: "Write a review...",
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.send, color: Colors.blue),
-                        onPressed: () {
-                          print("Review submitted!");
+                          );
                         },
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          // ✍🏻 ช่องป้อนรีวิวติดด้านล่างหน้าจอ
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _showReviewPopup,
+              child: Icon(Icons.reviews),
+            ),
+          ),
+        ],
       ),
     );
   }
