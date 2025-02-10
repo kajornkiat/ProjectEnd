@@ -1,0 +1,82 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,                   
+    username VARCHAR(20) NOT NULL UNIQUE,   
+    password VARCHAR(255) NOT NULL,         
+    email VARCHAR(255) NOT NULL UNIQUE,     
+    fullname VARCHAR(255) NOT NULL,         
+    profile_image TEXT,                     
+    background_image TEXT,                  
+    gender VARCHAR(10),                     
+    birthdate DATE,                         
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok') 
+);
+
+CREATE TABLE post (
+    post_id SERIAL PRIMARY KEY,            
+    user_id INTEGER NOT NULL,             
+    province VARCHAR(100) NOT NULL,        
+    description TEXT,                      
+    image TEXT,                            
+    date TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok'),  
+    CONSTRAINT fk_user
+        FOREIGN KEY (user_id)             
+        REFERENCES users (id)
+        ON DELETE CASCADE                  
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE food (
+    id SERIAL PRIMARY KEY,                   
+    province VARCHAR(255) NOT NULL,          
+    name VARCHAR(255) NOT NULL,              
+    image TEXT,                              
+    description TEXT,                        
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL          
+);
+
+CREATE TABLE hotel (
+    id SERIAL PRIMARY KEY,                   
+    province VARCHAR(255) NOT NULL,          
+    name VARCHAR(255) NOT NULL,              
+    image TEXT,                              
+    description TEXT,                        
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL          
+);
+
+CREATE TABLE tourist (
+    id SERIAL PRIMARY KEY,                    
+    province VARCHAR(255) NOT NULL,          
+    name VARCHAR(255) NOT NULL,              
+    image TEXT,                              
+    description TEXT,                        
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL                
+);
+
+CREATE TABLE comment (
+    comment_id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL,
+    user_comment_id INTEGER NOT NULL,
+    comment TEXT NOT NULL,
+    date TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok'),
+
+    CONSTRAINT fk_post
+        FOREIGN KEY (post_id) REFERENCES post (post_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    CONSTRAINT fk_user_comment
+        FOREIGN KEY (user_comment_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE reviews (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, 
+    category VARCHAR(10) CHECK (category IN ('food', 'hotel', 'tourist')) NOT NULL,
+    place_id INTEGER NOT NULL,  
+    review TEXT NOT NULL,  
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5), 
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok') 
+);
