@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class ViewsPage extends StatefulWidget {
+  final String category;
   final int place_id;
   final String imageUrl;
   final String name;
@@ -15,6 +17,7 @@ class ViewsPage extends StatefulWidget {
   final int reviewCount;
 
   ViewsPage({
+    required this.category,
     required this.place_id,
     required this.imageUrl,
     required this.name,
@@ -35,16 +38,61 @@ class _ViewsPageState extends State<ViewsPage> {
   double averageRating = 0.0;
   int reviewCount = 0;
   TextEditingController reviewController = TextEditingController();
+  late IO.Socket socket;
 
   @override
   void initState() {
     super.initState();
     fetchReviews();
+    setupSocket();
+  }
+
+  void setupSocket() {
+    socket = IO.io('http://10.39.5.96:3000', <String, dynamic>{
+      'transports': ['websocket'],
+      'autoConnect': false,
+    });
+
+    socket.connect();
+
+    // ✅ ฟัง event "newReview" และเพิ่มรีวิวใหม่
+    socket.on('newReview', (data) {
+      if (data['category'] == widget.category &&
+          data['place_id'] == widget.place_id) {
+        setState(() {
+          reviews.insert(0, data); // เพิ่มรีวิวใหม่ด้านบน
+          averageRating = ((averageRating * reviewCount) + data['rating']) /
+              (reviewCount + 1);
+          reviewCount++;
+        });
+      }
+    });
+
+    // ✅ ฟัง event "deleteReview" และลบรีวิวที่ตรงกับ ID
+    socket.on('deleteReview', (reviewId) {
+      setState(() {
+        reviews.removeWhere((review) => review['id'] == reviewId);
+
+        // คำนวณค่าเฉลี่ยใหม่
+        if (reviews.isNotEmpty) {
+          final totalRating = reviews.fold<double>(0.0, (sum, review) {
+            final rating = review['rating'];
+            return sum + (rating is num ? rating : 0);
+          });
+
+          averageRating = totalRating / reviews.length;
+        } else {
+          averageRating = 0.0;
+        }
+
+        reviewCount = reviews.length;
+      });
+    });
   }
 
   Future<void> fetchReviews() async {
-    final response = await http.get(
-        Uri.parse('http://192.168.242.68:3000/api/reviews/${widget.place_id}'));
+    final response = await http.get(Uri.parse(
+        'http://10.39.5.96:3000/api/reviews/${widget.category}/${widget.place_id}'));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -53,8 +101,40 @@ class _ViewsPageState extends State<ViewsPage> {
         averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
         reviewCount = (data['reviewCount'] as num?)?.toInt() ?? 0;
       });
+      print("Fetched reviews: $reviews"); // ✅ ตรวจสอบค่าที่ได้จาก API
     } else {
       print("Error fetching reviews: ${response.statusCode}");
+    }
+  }
+
+  Future<void> addReview(String reviewText, double rating) async {
+    final url = Uri.parse("http://10.39.5.96:3000/api/reviews");
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "category": widget.category,
+        "place_id": widget.place_id,
+        "review": reviewText,
+        "rating": rating,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      reviewController.clear();
+    } else {
+      print("Failed to add review: ${response.statusCode}");
+    }
+  }
+
+  Future<void> deleteReview(int reviewId) async {
+    final url = Uri.parse("http://10.39.5.96:3000/api/reviews/$reviewId");
+    final response = await http.delete(url);
+
+    if (response.statusCode == 200) {
+      print("Review deleted successfully!");
+    } else {
+      print("Failed to delete review: ${response.statusCode}");
     }
   }
 

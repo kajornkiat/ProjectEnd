@@ -27,7 +27,7 @@ class _SelectPageState extends State<SelectPage> {
   }
 
   Future<void> fetchPlaces() async {
-    String baseUrl = 'http://192.168.242.68:3000/api';
+    String baseUrl = 'http://10.39.5.96:3000/api';
     String url = '$baseUrl/${widget.category}';
     try {
       final response = await http.get(Uri.parse(url));
@@ -116,7 +116,7 @@ class _SelectPageState extends State<SelectPage> {
                   final place = filteredPlaces[index];
                   final imageUrl =
                       place['image'] != null && place['image'].isNotEmpty
-                          ? 'http://192.168.242.68:3000${place['image']}'
+                          ? 'http://10.39.5.96:3000${place['image']}'
                           : 'https://via.placeholder.com/150';
 
                   return GestureDetector(
@@ -125,15 +125,19 @@ class _SelectPageState extends State<SelectPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ViewsPage(
+                            category: widget.category,
                             imageUrl: imageUrl,
                             name: place['name'],
                             rating: place['rating'] ?? 0.0,
                             reviewCount: place['reviewCount'] ?? 0,
                             province: place['province'] ?? 'Unknown Province',
-                            description: place['description'] ?? 'No description available',
-                            latitude: place['latitude'] ?? 0.0,  // เพิ่มข้อมูล latitude
-                            longitude: place['longitude'] ?? 0.0, // เพิ่มข้อมูล longitude
-                            place_id: place['id'], 
+                            description: place['description'] ??
+                                'No description available',
+                            latitude: place['latitude'] ??
+                                0.0, // เพิ่มข้อมูล latitude
+                            longitude: place['longitude'] ??
+                                0.0, // เพิ่มข้อมูล longitude
+                            place_id: place['id'],
                           ),
                         ),
                       );

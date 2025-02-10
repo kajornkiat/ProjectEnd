@@ -614,25 +614,40 @@ app.delete('/api/comments/:comment_id', authenticateToken, async (req, res) => {
 // 📌 เพิ่มรีวิวใหม่
 app.post('/api/reviews', authenticateToken, async (req, res) => {
     try {
-        const { place_id, review, rating } = req.body;
+        const { category, place_id, review, rating } = req.body;
         const user_id = req.user.id;
 
-        if (!place_id || !review || !rating) {
+        // ✅ ตรวจสอบค่า category
+        const validCategories = ["food", "hotel", "tourist"];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({ error: "Invalid category" });
+        }
+
+        // ✅ ตรวจสอบว่ามีข้อมูลครบ
+        if (!place_id || !review || rating === undefined) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // ✅ บังคับให้ rating เป็น int
-        const ratingInt = parseInt(rating);
-        if (ratingInt < 1 || ratingInt > 5) {
-            return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+        // ✅ ตรวจสอบค่า rating ให้เป็นตัวเลขเท่านั้น
+        const ratingInt = Number(rating);
+        if (isNaN(ratingInt) || ratingInt < 1 || ratingInt > 5) {
+            return res.status(400).json({ error: 'Rating must be a number between 1 and 5' });
         }
 
+        // ✅ ตรวจสอบว่า place_id มีอยู่ใน category ที่ถูกต้อง
+        const placeExists = await pool.query(`SELECT id FROM ${category} WHERE id = $1`, [place_id]);
+        if (placeExists.rowCount === 0) {
+            return res.status(400).json({ error: `Place ID ${place_id} not found in ${category}` });
+        }
+
+        // ✅ เพิ่มรีวิว
         const newReview = await pool.query(
-            `INSERT INTO reviews (user_id, place_id, review, rating) 
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [user_id, place_id, review, ratingInt]
+            `INSERT INTO reviews (user_id, category, place_id, review, rating) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [user_id, category, place_id, review, ratingInt]
         );
 
+        io.emit('newReview', newReview.rows[0]);
         res.json(newReview.rows[0]);
     } catch (err) {
         console.error(err);
@@ -642,32 +657,44 @@ app.post('/api/reviews', authenticateToken, async (req, res) => {
 
 
 // 📌 ดึงรีวิวของสถานที่
-app.get('/api/reviews/:place_id', async (req, res) => {
+app.get('/api/reviews/:category/:place_id', async (req, res) => {
     try {
-        const { place_id } = req.params;
+        const { category, place_id } = req.params;
+
+        // ✅ ตรวจสอบค่า category
+        const validCategories = ["food", "hotel", "tourist"];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({ error: "Invalid category" });
+        }
+
+        // ✅ ตรวจสอบว่า place_id มีอยู่ใน category ที่ถูกต้อง
+        const placeExists = await pool.query(`SELECT id FROM ${category} WHERE id = $1`, [place_id]);
+        if (placeExists.rowCount === 0) {
+            return res.status(404).json({ error: `Place ID ${place_id} not found in ${category}` });
+        }
 
         // ✅ ดึงรีวิวทั้งหมด
         const reviewsQuery = await pool.query(
             `SELECT r.*, u.username, u.profile_image 
              FROM reviews r 
              JOIN users u ON r.user_id = u.id 
-             WHERE r.place_id = $1 
+             WHERE r.category = $1 AND r.place_id = $2 
              ORDER BY r.created_at DESC`,
-            [place_id]
+            [category, place_id]
         );
 
         // ✅ คำนวณค่าเฉลี่ย rating และจำนวนรีวิว
         const statsQuery = await pool.query(
             `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
              FROM reviews 
-             WHERE place_id = $1`,
-            [place_id]
+             WHERE category = $1 AND place_id = $2`,
+            [category, place_id]
         );
 
         res.json({
             reviews: reviewsQuery.rows,
-            averageRating: parseFloat(statsQuery.rows[0].average_rating), // ✅ แปลงค่าให้เป็น float
-            reviewCount: parseInt(statsQuery.rows[0].review_count) // ✅ แปลงค่าให้เป็น int
+            averageRating: parseFloat(statsQuery.rows[0].average_rating),
+            reviewCount: parseInt(statsQuery.rows[0].review_count)
         });
 
     } catch (err) {
@@ -683,16 +710,24 @@ app.delete('/api/reviews/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
         const user_id = req.user.id;
 
+        // ✅ ตรวจสอบว่ารีวิวมีอยู่และเป็นของผู้ใช้ที่ร้องขอ
+        const reviewCheck = await pool.query(
+            "SELECT * FROM reviews WHERE id = $1 AND user_id = $2",
+            [id, user_id]
+        );
+
+        if (reviewCheck.rowCount === 0) {
+            return res.status(403).json({ error: "You can only delete your own reviews or review does not exist" });
+        }
+
+        // ✅ ลบรีวิว
         const review = await pool.query(
             "DELETE FROM reviews WHERE id = $1 AND user_id = $2 RETURNING *",
             [id, user_id]
         );
 
-        if (review.rowCount === 0) {
-            return res.status(403).json({ error: "You can only delete your own reviews" });
-        }
-
-        res.json({ message: "Review deleted successfully" });
+        io.emit('deleteReview', id);
+        res.json({ message: "Review deleted successfully", deletedReview: review.rows[0] });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
