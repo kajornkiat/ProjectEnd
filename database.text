@@ -78,5 +78,23 @@ CREATE TABLE reviews (
     place_id INTEGER NOT NULL,  
     review TEXT NOT NULL,  
     rating INTEGER CHECK (rating BETWEEN 1 AND 5), 
-    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok') 
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
 );
+CREATE OR REPLACE FUNCTION check_place_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.category = 'food' AND NOT EXISTS (SELECT 1 FROM food WHERE id = NEW.place_id) THEN
+        RAISE EXCEPTION 'place_id ไม่พบใน food';
+    ELSIF NEW.category = 'hotel' AND NOT EXISTS (SELECT 1 FROM hotel WHERE id = NEW.place_id) THEN
+        RAISE EXCEPTION 'place_id ไม่พบใน hotel';
+    ELSIF NEW.category = 'tourist' AND NOT EXISTS (SELECT 1 FROM tourist WHERE id = NEW.place_id) THEN
+        RAISE EXCEPTION 'place_id ไม่พบใน tourist';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER enforce_place_id
+BEFORE INSERT OR UPDATE ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION check_place_id();
+
