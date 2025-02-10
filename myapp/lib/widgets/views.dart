@@ -41,16 +41,18 @@ class _ViewsPageState extends State<ViewsPage> {
   int reviewCount = 0;
   TextEditingController reviewController = TextEditingController();
   late IO.Socket socket;
+  int? currentUserId;
 
   @override
   void initState() {
     super.initState();
+    getCurrentUserId();
     fetchReviews();
     setupSocket();
   }
 
   void setupSocket() {
-    socket = IO.io('http://10.39.5.96:3000', <String, dynamic>{
+    socket = IO.io('http://192.168.242.188:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -92,9 +94,23 @@ class _ViewsPageState extends State<ViewsPage> {
     });
   }
 
+  Future<void> getCurrentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedUserId =
+        prefs.getInt('user_id'); // ดึง user_id จาก SharedPreferences
+
+    if (storedUserId != null) {
+      setState(() {
+        currentUserId = storedUserId;
+      });
+    } else {
+      print("❌ No user ID found in SharedPreferences");
+    }
+  }
+
   Future<void> fetchReviews() async {
     final response = await http.get(Uri.parse(
-        'http://10.39.5.96:3000/api/reviews/${widget.category}/${widget.place_id}'));
+        'http://192.168.242.188:3000/api/reviews/${widget.category}/${widget.place_id}'));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -118,7 +134,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://10.39.5.96:3000/api/reviews");
+    final url = Uri.parse("http://192.168.242.188:3000/api/reviews");
     final response = await http.post(
       url,
       headers: {
@@ -136,6 +152,8 @@ class _ViewsPageState extends State<ViewsPage> {
     if (response.statusCode == 200) {
       print("✅ Review added successfully!");
       reviewController.clear();
+      fetchReviews(); // รีเฟรช UI
+      socket.emit("newReview"); // 🔥 แจ้งเซิร์ฟเวอร์ให้อัปเดตรีวิวแบบ Real-Time
     } else {
       print("❌ Failed to add review: ${response.body}");
     }
@@ -207,7 +225,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://10.39.5.96:3000/api/reviews/$reviewId");
+    final url = Uri.parse("http://192.168.242.188:3000/api/reviews/$reviewId");
     final response = await http.delete(
       url,
       headers: {
@@ -217,6 +235,9 @@ class _ViewsPageState extends State<ViewsPage> {
 
     if (response.statusCode == 200) {
       print("✅ Review deleted successfully!");
+      fetchReviews(); // รีเฟรช UI
+      socket.emit(
+          "deleteReview"); // 🔥 แจ้งเซิร์ฟเวอร์ให้อัปเดตรีวิวแบบ Real-Time
     } else {
       print("❌ Failed to delete review: ${response.body}");
     }
@@ -335,9 +356,17 @@ class _ViewsPageState extends State<ViewsPage> {
                         itemCount: reviews.length,
                         itemBuilder: (context, index) {
                           final review = reviews[index];
+                          final isOwner = review['user_id'] ==
+                              currentUserId; // เช็คว่าเป็นเจ้าของรีวิวไหม
                           return ListTile(
                             leading: CircleAvatar(
-                                child: Icon(Icons.person, size: 20)),
+                              backgroundImage: review['profile_image'] != null
+                                  ? NetworkImage(
+                                      'http://192.168.242.188:3000${review['profile_image']}')
+                                  : AssetImage('assets/default_profile.png')
+                                      as ImageProvider,
+                              backgroundColor: Colors.grey[300],
+                            ),
                             title: Text(review['username']),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,6 +381,14 @@ class _ViewsPageState extends State<ViewsPage> {
                                 Text(review['review']),
                               ],
                             ),
+                            trailing: isOwner
+                                ? IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      deleteReview(review['id']);
+                                    },
+                                  )
+                                : null,
                           );
                         },
                       ),

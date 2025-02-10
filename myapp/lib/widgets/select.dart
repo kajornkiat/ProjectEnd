@@ -27,7 +27,7 @@ class _SelectPageState extends State<SelectPage> {
   }
 
   Future<void> fetchPlaces() async {
-    String baseUrl = 'http://10.39.5.96:3000/api';
+    String baseUrl = 'http://192.168.242.188:3000/api';
     String url = '$baseUrl/${widget.category}';
     try {
       final response = await http.get(Uri.parse(url));
@@ -116,7 +116,7 @@ class _SelectPageState extends State<SelectPage> {
                   final place = filteredPlaces[index];
                   final imageUrl =
                       place['image'] != null && place['image'].isNotEmpty
-                          ? 'http://10.39.5.96:3000${place['image']}'
+                          ? 'http://192.168.242.188:3000${place['image']}'
                           : 'https://via.placeholder.com/150';
 
                   return GestureDetector(
@@ -128,8 +128,10 @@ class _SelectPageState extends State<SelectPage> {
                             category: widget.category,
                             imageUrl: imageUrl,
                             name: place['name'],
-                            rating: place['rating'] ?? 0.0,
-                            reviewCount: place['reviewCount'] ?? 0,
+                            rating:
+                                place['averageRating'] ?? 0.0, // ⭐ แก้ไขตรงนี้
+                            reviewCount:
+                                place['reviewCount'] ?? 0, // ⭐ แก้ไขตรงนี้
                             province: place['province'] ?? 'Unknown Province',
                             description: place['description'] ??
                                 'No description available',
@@ -145,7 +147,8 @@ class _SelectPageState extends State<SelectPage> {
                     child: PlaceCard(
                       name: place['name'],
                       imageUrl: imageUrl,
-                      rating: place['rating'] ?? 0.0,
+                      rating: place['averageRating'] ?? 0.0, // ⭐ เพิ่มตรงนี้
+                      reviewCount: place['reviewCount'] ?? 0, // ⭐ เพิ่มตรงนี้
                     ),
                   );
                 },
@@ -159,8 +162,14 @@ class PlaceCard extends StatelessWidget {
   final String name;
   final String imageUrl;
   final double rating;
+  final int reviewCount;
 
-  PlaceCard({required this.name, required this.imageUrl, required this.rating});
+  PlaceCard({
+    required this.name,
+    required this.imageUrl,
+    required this.rating,
+    required this.reviewCount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -222,14 +231,19 @@ class PlaceCard extends StatelessWidget {
               bottom: 10,
               child: Row(
                 children: [
-                  Icon(Icons.star, color: Colors.yellow, size: 20),
+                  Icon(Icons.star, color: Colors.yellow, size: 18),
                   SizedBox(width: 5),
                   Text(
-                    rating.toString(),
+                    rating.toStringAsFixed(1),
                     style: TextStyle(
-                      color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      color: const Color.fromARGB(255, 113, 112, 112),
                     ),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    "($reviewCount Reviews)",
+                    style: TextStyle(color: const Color.fromARGB(179, 0, 0, 0), fontSize: 12),
                   ),
                 ],
               ),
