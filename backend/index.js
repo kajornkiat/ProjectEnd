@@ -792,6 +792,25 @@ app.delete('/api/reviews/:id', authenticateToken, async (req, res) => {
     }
 });
 
+//add_freinds
+// 🔎 API ค้นหาผู้ใช้ตาม fullname
+app.get("/api/users/search", async (req, res) => {
+    try {
+        const { fullname } = req.query;
+        const query = `
+        SELECT id, fullname, profile_image 
+        FROM users 
+        WHERE LOWER(fullname) LIKE LOWER($1) 
+        LIMIT 10
+      `;
+        const users = await pool.query(query, [`%${fullname}%`]);
+        res.json(users.rows);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Server error");
+    }
+});
+
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

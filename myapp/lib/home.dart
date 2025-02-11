@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
     }
     return [
       HomePageContent(userData: userData!), // ✅ ส่ง userData (ไม่ใช่ userId)
-      AddFriendsPage(),
+      AddFriendsPage(currentUserId: widget.userId),
       ChatPage(),
       ProfilePage(userId: widget.userId),
     ];
@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.39.5.52:3000/profile/${widget.userId}'),
+        Uri.parse('http://192.168.242.248:3000/profile/${widget.userId}'),
         headers: {
           'Authorization': 'Bearer $token', // ใช้ token จริง
         },
@@ -65,7 +65,7 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           userData = data; // ✅ เก็บข้อมูล userData
           profileImageUrl =
-              'http://10.39.5.52:3000${data['profile_image']}' ??
+              'http://192.168.242.248:3000${data['profile_image']}' ??
                   'assets/images/9669.jpg';
         });
       } else {
