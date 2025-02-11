@@ -468,13 +468,30 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                             title: Text(comment['fullname']),
                             subtitle: Text(comment['comment']),
                             trailing: comment['user_id'] ==
-                                    userId // ✅ เช็คว่าเป็นเจ้าของคอมเมนต์หรือไม่
-                                ? IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => deleteComment(postId,
-                                        comment['comment_id'], setModalState),
+                                    userId // ✅ แสดงจุดไข่ปลาเฉพาะคอมเมนต์ของตนเอง
+                                ? PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == "delete") {
+                                        deleteComment(
+                                            postId,
+                                            comment['comment_id'],
+                                            setModalState);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: "delete",
+                                        child: Text("Delete",
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ),
+                                      PopupMenuItem(
+                                        value: "cancel",
+                                        child: Text("Cancel"),
+                                      ),
+                                    ],
                                   )
-                                : null, // 🔹 ถ้าไม่ใช่เจ้าของคอมเมนต์ จะไม่แสดงอะไรเ
+                                : null, // 🔹 ถ้าไม่ใช่เจ้าของคอมเมนต์ จะไม่แสดงปุ่ม
                           );
                         },
                       ),

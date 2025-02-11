@@ -396,13 +396,26 @@ class _ViewsPageState extends State<ViewsPage> {
                               ],
                             ),
                             trailing: isOwner
-                                ? IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () {
-                                      deleteReview(review['id']);
+                                ? PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == "delete") {
+                                        deleteReview(review['id']);
+                                      }
                                     },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: "delete",
+                                        child: Text("Delete",
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ),
+                                      PopupMenuItem(
+                                        value: "cancel",
+                                        child: Text("Cancel"),
+                                      ),
+                                    ],
                                   )
-                                : null,
+                                : null, // 🔹 ถ้าไม่ใช่เจ้าของรีวิว จะไม่แสดงปุ่ม
                           );
                         },
                       ),
