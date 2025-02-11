@@ -17,6 +17,7 @@ class ViewsPage extends StatefulWidget {
   final double longitude;
   final double rating;
   final int reviewCount;
+  final VoidCallback refreshCallback;
 
   ViewsPage({
     required this.category,
@@ -29,6 +30,7 @@ class ViewsPage extends StatefulWidget {
     required this.longitude,
     required this.rating,
     required this.reviewCount,
+    required this.refreshCallback,
   });
 
   @override
@@ -52,7 +54,7 @@ class _ViewsPageState extends State<ViewsPage> {
   }
 
   void setupSocket() {
-    socket = IO.io('http://192.168.242.188:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.52:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -69,6 +71,7 @@ class _ViewsPageState extends State<ViewsPage> {
               (reviewCount + 1);
           reviewCount++;
         });
+        widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
       }
     });
 
@@ -91,6 +94,7 @@ class _ViewsPageState extends State<ViewsPage> {
 
         reviewCount = reviews.length;
       });
+      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
     });
   }
 
@@ -110,7 +114,7 @@ class _ViewsPageState extends State<ViewsPage> {
 
   Future<void> fetchReviews() async {
     final response = await http.get(Uri.parse(
-        'http://192.168.242.188:3000/api/reviews/${widget.category}/${widget.place_id}'));
+        'http://10.39.5.52:3000/api/reviews/${widget.category}/${widget.place_id}'));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -119,6 +123,7 @@ class _ViewsPageState extends State<ViewsPage> {
         averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
         reviewCount = (data['reviewCount'] as num?)?.toInt() ?? 0;
       });
+      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
       print("Fetched reviews: $reviews"); // ✅ ตรวจสอบค่าที่ได้จาก API
     } else {
       print("Error fetching reviews: ${response.statusCode}");
@@ -134,7 +139,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://192.168.242.188:3000/api/reviews");
+    final url = Uri.parse("http://10.39.5.52:3000/api/reviews");
     final response = await http.post(
       url,
       headers: {
@@ -154,6 +159,7 @@ class _ViewsPageState extends State<ViewsPage> {
       reviewController.clear();
       fetchReviews(); // รีเฟรช UI
       socket.emit("newReview"); // 🔥 แจ้งเซิร์ฟเวอร์ให้อัปเดตรีวิวแบบ Real-Time
+      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
     } else {
       print("❌ Failed to add review: ${response.body}");
     }
@@ -225,7 +231,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://192.168.242.188:3000/api/reviews/$reviewId");
+    final url = Uri.parse("http://10.39.5.52:3000/api/reviews/$reviewId");
     final response = await http.delete(
       url,
       headers: {
@@ -238,9 +244,17 @@ class _ViewsPageState extends State<ViewsPage> {
       fetchReviews(); // รีเฟรช UI
       socket.emit(
           "deleteReview"); // 🔥 แจ้งเซิร์ฟเวอร์ให้อัปเดตรีวิวแบบ Real-Time
+      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
     } else {
       print("❌ Failed to delete review: ${response.body}");
     }
+  }
+
+  void updateRatingAndReviews(double newRating, int newReviewCount) {
+    Navigator.pop(context, {
+      'averageRating': newRating,
+      'reviewCount': newReviewCount,
+    });
   }
 
   void _openMap() async {
@@ -362,7 +376,7 @@ class _ViewsPageState extends State<ViewsPage> {
                             leading: CircleAvatar(
                               backgroundImage: review['profile_image'] != null
                                   ? NetworkImage(
-                                      'http://192.168.242.188:3000${review['profile_image']}')
+                                      'http://10.39.5.52:3000${review['profile_image']}')
                                   : AssetImage('assets/default_profile.png')
                                       as ImageProvider,
                               backgroundColor: Colors.grey[300],

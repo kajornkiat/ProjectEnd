@@ -231,6 +231,22 @@ app.get('/api/food', async (req, res) => {
         const result = await pool.query(query, values);
         let foodData = result.rows;
 
+        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ food
+        for (let i = 0; i < foodData.length; i++) {
+            const food = foodData[i];
+
+            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
+            const statsQuery = await pool.query(
+                `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
+                 FROM reviews 
+                 WHERE category = 'food' AND place_id = $1`,
+                [food.id]
+            );
+
+            food.averageRating = parseFloat(statsQuery.rows[0].average_rating);
+            food.reviewCount = parseInt(statsQuery.rows[0].review_count);
+        }
+
         // **เรียงลำดับข้อมูล**: ตรงมากที่สุดขึ้นก่อน
         foodData.sort((a, b) => {
             let scoreA = (province && a.province.toLowerCase().startsWith(province.toLowerCase()) ? 1 : 0) +
@@ -314,6 +330,22 @@ app.get('/api/hotel', async (req, res) => {
         const result = await pool.query(query, values);
         let hotelData = result.rows;
 
+        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ food
+        for (let i = 0; i < hotelData.length; i++) {
+            const hotel = hotelData[i];
+
+            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
+            const statsQuery = await pool.query(
+                `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
+                 FROM reviews 
+                 WHERE category = 'hotel' AND place_id = $1`,
+                [hotel.id]
+            );
+
+            hotel.averageRating = parseFloat(statsQuery.rows[0].average_rating);
+            hotel.reviewCount = parseInt(statsQuery.rows[0].review_count);
+        }
+
         // **เรียงลำดับข้อมูล**: ตรงมากที่สุดขึ้นก่อน
         hotelData.sort((a, b) => {
             let scoreA = (province && a.province.toLowerCase().startsWith(province.toLowerCase()) ? 1 : 0) +
@@ -396,6 +428,22 @@ app.get('/api/tourist', async (req, res) => {
         // ดึงข้อมูลจาก PostgreSQL
         const result = await pool.query(query, values);
         let touristData = result.rows;
+
+        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ food
+        for (let i = 0; i < touristData.length; i++) {
+            const tourist = touristData[i];
+
+            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
+            const statsQuery = await pool.query(
+                `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
+                 FROM reviews 
+                 WHERE category = 'tourist' AND place_id = $1`,
+                [tourist.id]
+            );
+
+            tourist.averageRating = parseFloat(statsQuery.rows[0].average_rating);
+            tourist.reviewCount = parseInt(statsQuery.rows[0].review_count);
+        }
 
         // **เรียงลำดับข้อมูล**: ตรงมากที่สุดขึ้นก่อน
         touristData.sort((a, b) => {

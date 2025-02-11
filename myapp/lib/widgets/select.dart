@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'views.dart';
+import 'dart:async';
 
 class SelectPage extends StatefulWidget {
   final String category;
@@ -16,6 +17,8 @@ class _SelectPageState extends State<SelectPage> {
   List<dynamic> places = [];
   List<dynamic> filteredPlaces = [];
   TextEditingController searchController = TextEditingController();
+  final StreamController<void> _refreshController =
+      StreamController.broadcast();
 
   @override
   void initState() {
@@ -26,8 +29,14 @@ class _SelectPageState extends State<SelectPage> {
     });
   }
 
+  @override
+  void dispose() {
+    _refreshController.close(); // ✅ ปิด Stream เมื่อหน้าโดน dispose
+    super.dispose();
+  }
+
   Future<void> fetchPlaces() async {
-    String baseUrl = 'http://192.168.242.188:3000/api';
+    String baseUrl = 'http://10.39.5.52:3000/api';
     String url = '$baseUrl/${widget.category}';
     try {
       final response = await http.get(Uri.parse(url));
@@ -37,6 +46,7 @@ class _SelectPageState extends State<SelectPage> {
           places = data;
           filteredPlaces = data;
         });
+        print('Response: ${response.body}');
       } else {
         print('Failed to load data');
       }
@@ -116,8 +126,14 @@ class _SelectPageState extends State<SelectPage> {
                   final place = filteredPlaces[index];
                   final imageUrl =
                       place['image'] != null && place['image'].isNotEmpty
-                          ? 'http://192.168.242.188:3000${place['image']}'
+                          ? 'http://10.39.5.52:3000${place['image']}'
                           : 'https://via.placeholder.com/150';
+
+                  // ✅ แยกตัวแปรออกมาก่อน
+                  final dynamic ratingData = place['averageRating'];
+                  final double rating =
+                      ratingData is num ? ratingData.toDouble() : 0.0;
+                  final int reviewCount = (place['reviewCount'] as int?) ?? 0;
 
                   return GestureDetector(
                     onTap: () {
@@ -128,10 +144,8 @@ class _SelectPageState extends State<SelectPage> {
                             category: widget.category,
                             imageUrl: imageUrl,
                             name: place['name'],
-                            rating:
-                                place['averageRating'] ?? 0.0, // ⭐ แก้ไขตรงนี้
-                            reviewCount:
-                                place['reviewCount'] ?? 0, // ⭐ แก้ไขตรงนี้
+                            rating: rating, // ✅ ใช้ค่าที่ประกาศไว้
+                            reviewCount: reviewCount, // ✅ ใช้ค่าที่ประกาศไว้
                             province: place['province'] ?? 'Unknown Province',
                             description: place['description'] ??
                                 'No description available',
@@ -140,14 +154,22 @@ class _SelectPageState extends State<SelectPage> {
                             longitude: place['longitude'] ??
                                 0.0, // เพิ่มข้อมูล longitude
                             place_id: place['id'],
+                            refreshCallback: () {
+                              _refreshController
+                                  .add(null); // ✅ อัปเดตค่าแบบเรียลไทม์
+                            },
                           ),
                         ),
-                      );
+                      ).then((_) {
+                        // ✅ ดึงข้อมูลจาก API ใหม่เมื่อย้อนกลับมา
+                        fetchPlaces();
+                      });
                     },
                     child: PlaceCard(
                       name: place['name'],
                       imageUrl: imageUrl,
-                      rating: place['averageRating'] ?? 0.0, // ⭐ เพิ่มตรงนี้
+                      rating: (place['averageRating'] as num?)?.toDouble() ??
+                          0.0, // ⭐ เพิ่มตรงนี้
                       reviewCount: place['reviewCount'] ?? 0, // ⭐ เพิ่มตรงนี้
                     ),
                   );
@@ -237,13 +259,15 @@ class PlaceCard extends StatelessWidget {
                     rating.toStringAsFixed(1),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 113, 112, 112),
+                      color: const Color.fromARGB(255, 255, 255, 255),
                     ),
                   ),
                   SizedBox(width: 5),
                   Text(
                     "($reviewCount Reviews)",
-                    style: TextStyle(color: const Color.fromARGB(179, 0, 0, 0), fontSize: 12),
+                    style: TextStyle(
+                        color: const Color.fromARGB(179, 255, 255, 255),
+                        fontSize: 12),
                   ),
                 ],
               ),
