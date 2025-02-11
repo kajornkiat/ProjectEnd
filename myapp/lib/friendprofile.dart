@@ -6,60 +6,19 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
 
-class FriendProfilePage extends StatefulWidget {
+class FriendProfilePage extends StatelessWidget {
   final int userId;
-  const FriendProfilePage({required this.userId, super.key});
+  final String fullname;
+  final String profileImageUrl;
+  final String backgroundImageUrl;
 
-  @override
-  State<FriendProfilePage> createState() => _FriendProfilePageState();
-}
-
-class _FriendProfilePageState extends State<FriendProfilePage> {
-  String profileImageUrl = ''; // URL ของรูปโปรไฟล์
-  String backgroundImageUrl = ''; // URL ของรูปพื้นหลัง
-  String userName = ''; // ชื่อของผู้ใช้
-  bool _isLoading = false; // สถานะการโหลด
-
-  @override
-  void initState() {
-    super.initState();
-    fetchImages(); // เรียกใช้ฟังก์ชันดึงข้อมูลเมื่อเริ่มต้น
-  }
-
-  // ฟังก์ชันดึงข้อมูลจาก API
-  Future<void> fetchImages() async {
-    setState(() {
-      _isLoading = true; // ตั้งค่าการโหลด
-    });
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-
-    final response = await http.get(
-      Uri.parse('http://192.168.242.248:3000/profile/${widget.userId}'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    print('Response: ${response.body}'); // พิมพ์ค่า response
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        profileImageUrl = 'http://192.168.242.248:3000${data['profile_image']}';
-        backgroundImageUrl =
-            'http://192.168.242.248:3000${data['background_image']}';
-        userName = data['fullname'] ?? '';
-      });
-    } else {
-      print('Failed to load images');
-    }
-
-    setState(() {
-      _isLoading = false; // สิ้นสุดการโหลด
-    });
-  }
+  const FriendProfilePage({
+    required this.userId,
+    required this.fullname,
+    required this.profileImageUrl,
+    required this.backgroundImageUrl,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +41,17 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                     ),
                   ),
                 ),
+                // 🔹 Back Button
+                Positioned(
+                  top: 40, // ปรับตำแหน่ง
+                  left: 16,
+                  child: IconButton(
+                    icon: Icon(Icons.arrow_back, color: const Color.fromARGB(255, 0, 0, 0), size: 30),
+                    onPressed: () {
+                      Navigator.pop(context); // กลับหน้าก่อนหน้า
+                    },
+                  ),
+                ),
                 // Profile Picture
                 Positioned(
                   top: 100,
@@ -91,12 +61,11 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                     backgroundImage: NetworkImage(profileImageUrl),
                   ),
                 ),
-
               ],
             ),
             const SizedBox(height: 65), // ปรับขนาดให้เว้นระยะห่างด้านบน
             Text(
-              userName,
+              fullname,
               style: const TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.bold,

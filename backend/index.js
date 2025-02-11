@@ -798,7 +798,7 @@ app.get("/api/users/search", async (req, res) => {
     try {
         const { fullname } = req.query;
         const query = `
-        SELECT id, fullname, profile_image 
+        SELECT id, fullname, profile_image, background_image
         FROM users 
         WHERE LOWER(fullname) LIKE LOWER($1) 
         LIMIT 10

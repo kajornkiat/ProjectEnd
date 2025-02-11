@@ -97,7 +97,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
             ],
           ),
           Positioned(
-            top: MediaQuery.of(context).padding.top + 60,
+            top: MediaQuery.of(context).padding.top + 15,
             left: 0,
             right: 0,
             bottom: 0,
@@ -127,8 +127,14 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  FriendProfilePage(userId: user['id']),
+                              builder: (context) => FriendProfilePage(
+                                userId: user['id'],
+                                fullname: user['fullname'], // ส่งชื่อไป
+                                profileImageUrl:
+                                    'http://192.168.242.248:3000${user['profile_image']}', // ส่งรูปโปรไฟล์ไป
+                                backgroundImageUrl:
+                                    'http://192.168.242.248:3000${user['background_image'] ?? ''}', // ส่งรูปพื้นหลังไป
+                              ),
                             ),
                           );
                         },
