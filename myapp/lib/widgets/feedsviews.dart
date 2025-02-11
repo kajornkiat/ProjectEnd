@@ -467,11 +467,14 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                             ),
                             title: Text(comment['fullname']),
                             subtitle: Text(comment['comment']),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => deleteComment(
-                                  postId, comment['comment_id'], setModalState),
-                            ),
+                            trailing: comment['user_id'] ==
+                                    userId // ✅ เช็คว่าเป็นเจ้าของคอมเมนต์หรือไม่
+                                ? IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => deleteComment(postId,
+                                        comment['comment_id'], setModalState),
+                                  )
+                                : null, // 🔹 ถ้าไม่ใช่เจ้าของคอมเมนต์ จะไม่แสดงอะไรเ
                           );
                         },
                       ),
