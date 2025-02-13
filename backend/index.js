@@ -908,6 +908,23 @@ app.delete('/api/friends/delete', async (req, res) => {
     }
 });
 
+// API ดึงจำนวนคำขอเป็นเพื่อนที่ pending
+app.get('/api/friends/pending/count', async (req, res) => {
+    const { user_id } = req.query;
+
+    try {
+        const { rows } = await pool.query(
+            "SELECT COUNT(*) FROM friends WHERE receiver_id = $1 AND status = 'pending'",
+            [user_id]
+        );
+
+        res.json({ count: parseInt(rows[0].count, 10) });
+    } catch (error) {
+        console.error('Error fetching friend requests count:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 app.listen(port, () => {

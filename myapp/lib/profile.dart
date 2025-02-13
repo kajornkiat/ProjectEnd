@@ -36,7 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final token = prefs.getString('token');
 
     final response = await http.get(
-      Uri.parse('http://10.39.5.40:3000/profile/${widget.userId}'),
+      Uri.parse('http://192.168.242.162:3000/profile/${widget.userId}'),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -47,9 +47,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        profileImageUrl = 'http://10.39.5.40:3000${data['profile_image']}';
+        profileImageUrl = 'http://192.168.242.162:3000${data['profile_image']}';
         backgroundImageUrl =
-            'http://10.39.5.40:3000${data['background_image']}';
+            'http://192.168.242.162:3000${data['background_image']}';
         userName = data['fullname'] ?? '';
       });
     } else {
@@ -69,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.40:3000/profile'),
+      Uri.parse('http://192.168.242.162:3000/profile'),
     );
     // ใช้ widget.userId แทน '1'
     request.fields['id'] = widget.userId.toString();
@@ -107,7 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
     // สร้าง request
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.40:3000/profile'), // ใช้ URL ที่ถูกต้อง
+      Uri.parse('http://192.168.242.162:3000/profile'), // ใช้ URL ที่ถูกต้อง
     );
 
     // ส่ง ID
@@ -308,7 +308,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 40,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.white),
+                    icon: const Icon(Icons.logout, color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       showLogoutDialog(context);
                     },
@@ -319,7 +319,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 70,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
+                    icon: const Icon(Icons.settings, color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       //Action
                     },
@@ -330,7 +330,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 100,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white),
+                    icon: const Icon(Icons.edit, color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       showEditDialog(context);
                     },

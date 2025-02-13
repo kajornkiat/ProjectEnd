@@ -50,7 +50,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     final response = await http.post(
-      Uri.parse('http://10.39.5.40:3000/api/signup'),
+      Uri.parse('http://192.168.242.162:3000/api/signup'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },

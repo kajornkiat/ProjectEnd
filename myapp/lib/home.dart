@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   final int userId;
-  HomePage({required this.userId});
+  HomePage({required this.userId, Key? key}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -20,18 +20,26 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  String profileImageUrl = 'assets/images/9669.jpg'; // รูปเริ่มต้น
-  Map<String, dynamic>? userData; // ✅ เก็บข้อมูล userData
+  String profileImageUrl = 'assets/images/9669.jpg';
+  Map<String, dynamic>? userData;
+  int friendRequestsCount = 0; // จำนวนคำขอเป็นเพื่อน
 
   List<Widget> get _pages {
     if (userData == null) {
       return [
-        Center(child: CircularProgressIndicator()), // แสดง Loading ก่อน
+        const Center(child: CircularProgressIndicator()), // Loading
       ];
     }
     return [
-      HomePageContent(userData: userData!), // ✅ ส่ง userData (ไม่ใช่ userId)
-      AddFriendsPage(currentUserId: widget.userId),
+      HomePageContent(userData: userData!),
+      AddFriendsPage(
+        currentUserId: widget.userId,
+        onRequestCountChange: (count) {
+          setState(() {
+            friendRequestsCount = count;
+          });
+        },
+      ),
       ChatPage(),
       ProfilePage(userId: widget.userId),
     ];
@@ -40,13 +48,30 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    fetchUserProfile(); // ดึงข้อมูลผู้ใช้เมื่อหน้า Home ถูกสร้าง
+    fetchUserProfile();
+    fetchFriendRequestsCount();
+  }
+
+  Future<void> fetchFriendRequestsCount() async {
+    try {
+      final response = await http.get(Uri.parse(
+          'http://192.168.242.162:3000/api/friends/requests?receiver_id=${widget.userId}'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> requests = json.decode(response.body);
+        setState(() {
+          friendRequestsCount = requests.length;
+        });
+      }
+    } catch (e) {
+      print("Error fetching friend requests: $e");
+    }
   }
 
   Future<void> fetchUserProfile() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token'); // ดึง token จาก SharedPreferences
+      final token = prefs.getString('token');
 
       if (token == null) {
         print('Token not found');
@@ -54,19 +79,20 @@ class _HomePageState extends State<HomePage> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.39.5.40:3000/profile/${widget.userId}'),
+        Uri.parse('http://192.168.242.162:3000/profile/${widget.userId}'),
         headers: {
-          'Authorization': 'Bearer $token', // ใช้ token จริง
+          'Authorization': 'Bearer $token',
         },
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          userData = data; // ✅ เก็บข้อมูล userData
+          userData = data;
           profileImageUrl =
-              'http://10.39.5.40:3000${data['profile_image']}' ??
-                  'assets/images/9669.jpg';
+              data['profile_image'] != null && data['profile_image'].isNotEmpty
+                  ? 'http://192.168.242.162:3000${data['profile_image']}'
+                  : 'assets/images/9669.jpg';
         });
       } else {
         print('Failed to load profile image: ${response.statusCode}');
@@ -81,17 +107,14 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Stack(
         children: [
-          // เพิ่มรูปพื้นหลัง
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(
-                    'assets/images/signup.png'), // ใส่ path ของรูปพื้นหลัง
-                fit: BoxFit.cover, // ทำให้รูปภาพครอบคลุมทั้งหน้าจอ
+                image: AssetImage('assets/images/signup.png'),
+                fit: BoxFit.cover,
               ),
             ),
           ),
-          // เนื้อหาของหน้า HomePage
           IndexedStack(
             index: _currentIndex,
             children: _pages,
@@ -102,7 +125,7 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
-            _currentIndex = index; // เปลี่ยนหน้าเมื่อกด
+            _currentIndex = index; // เปลี่ยนหน้าเหมือนไอคอนอื่น
           });
         },
         items: [
@@ -118,15 +141,39 @@ class _HomePageState extends State<HomePage> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: ClipOval(
-              child: Image.asset(
-                'assets/images/add_friends.png',
-                width: 25,
-                height: 25,
-                fit: BoxFit.cover,
-              ),
+            icon: Stack(
+              children: [
+                ClipOval(
+                  child: Image.asset(
+                    'assets/images/add_friends.png',
+                    width: 25,
+                    height: 25,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                if (friendRequestsCount > 0) // 🔹 แสดง Badge ถ้ามีคำขอ
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$friendRequestsCount',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            label: '',
+            label: "Add Friends",
           ),
           BottomNavigationBarItem(
             icon: ClipOval(
@@ -173,45 +220,41 @@ class _HomePageState extends State<HomePage> {
 
 class HomePageContent extends StatelessWidget {
   final Map<String, dynamic> userData;
-  HomePageContent({required this.userData});
+  const HomePageContent({required this.userData, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 5,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(30),
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
                   ),
-                ),
+                ],
+                borderRadius: BorderRadius.circular(30),
               ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    Feeds(userData: userData),
-                    Tourist(),
-                    Hotel(),
-                    Food(),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: ListView(
+              children: [
+                Feeds(userData: userData),
+                Tourist(),
+                Hotel(),
+                Food(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

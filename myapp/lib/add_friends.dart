@@ -6,8 +6,13 @@ import 'friendprofile.dart'; // ลิ้งค์ไปหน้าข้อม
 
 class AddFriendsPage extends StatefulWidget {
   final int currentUserId; // รับ userId ของผู้ใช้ที่ล็อกอิน
+  final Function(int) onRequestCountChange; // 🔹 Callback function
 
-  const AddFriendsPage({super.key, required this.currentUserId});
+  const AddFriendsPage({
+    super.key,
+    required this.currentUserId,
+    required this.onRequestCountChange, // 🔹 รับ callback
+  });
 
   @override
   _AddFriendsPageState createState() => _AddFriendsPageState();
@@ -38,8 +43,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
       return;
     }
 
-    final url =
-        Uri.parse("http://10.39.5.40:3000/api/users/search?fullname=$query");
+    final url = Uri.parse(
+        "http://192.168.242.162:3000/api/users/search?fullname=$query");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -56,18 +61,21 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
   Future<void> fetchFriendRequests() async {
     final response = await http.get(Uri.parse(
-        'http://10.39.5.40:3000/api/friends/requests?receiver_id=${widget.currentUserId}'));
+        'http://192.168.242.162:3000/api/friends/requests?receiver_id=${widget.currentUserId}'));
 
     if (response.statusCode == 200) {
+      List<dynamic> requests = json.decode(response.body);
       setState(() {
-        friendRequests = json.decode(response.body);
+        friendRequests = requests;
       });
+
+      widget.onRequestCountChange(requests.length); // 🔹 อัปเดตไปที่ home.dart
     }
   }
 
   Future<void> acceptFriendRequest(int senderId) async {
     final response = await http.put(
-      Uri.parse('http://10.39.5.40:3000/api/friends/accept'),
+      Uri.parse('http://192.168.242.162:3000/api/friends/accept'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "sender_id": senderId,
@@ -84,7 +92,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
   Future<void> deleteFriendRequest(int senderId) async {
     final response = await http.delete(
-      Uri.parse('http://10.39.5.40:3000/api/friends/delete'),
+      Uri.parse('http://192.168.242.162:3000/api/friends/delete'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "sender_id": senderId,
@@ -179,17 +187,42 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                           itemCount: friendRequests.length,
                           itemBuilder: (context, index) {
                             final friend = friendRequests[index];
+
+                            void navigateToFriendProfile() {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FriendProfilePage(
+                                    userId: friend['id'],
+                                    currentUserId: widget.currentUserId,
+                                    fullname: friend['fullname'],
+                                    profileImageUrl:
+                                        'http://192.168.242.162:3000${friend['profile_image']}',
+                                    backgroundImageUrl:
+                                        'http://192.168.242.162:3000${friend['background_image'] ?? ''}',
+                                  ),
+                                ),
+                              );
+                            }
+
                             return ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: friend['profile_image'] != null
-                                    ? NetworkImage(
-                                        'http://10.39.5.40:3000${friend['profile_image']}',
-                                      )
-                                    : const AssetImage(
-                                            'assets/images/default_profile.png')
-                                        as ImageProvider,
+                              leading: GestureDetector(
+                                onTap: navigateToFriendProfile,
+                                child: CircleAvatar(
+                                  backgroundImage: friend['profile_image'] !=
+                                          null
+                                      ? NetworkImage(
+                                          'http://192.168.242.162:3000${friend['profile_image']}',
+                                        )
+                                      : const AssetImage(
+                                              'assets/images/default_profile.png')
+                                          as ImageProvider,
+                                ),
                               ),
-                              title: Text(friend['fullname']),
+                              title: GestureDetector(
+                                onTap: navigateToFriendProfile,
+                                child: Text(friend['fullname']),
+                              ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -220,55 +253,66 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
             ],
           ),
           // 🔹 แสดงผลลัพธ์การค้นหา
-          if (searchResults.isNotEmpty)
+          if (isSearching)
             Positioned(
               top: MediaQuery.of(context).padding.top + 70,
               left: 20,
               right: 20,
               child: Container(
-                height: 250, // จำกัดความสูงของรายการที่ค้นหา
+                height: 600, // จำกัดความสูงของรายการที่ค้นหา
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: ListView.builder(
-                  itemCount: searchResults.length,
-                  itemBuilder: (context, index) {
-                    final user = searchResults[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: user['profile_image'] != null
-                            ? NetworkImage(
-                                'http://10.39.5.40:3000${user['profile_image']}',
-                              )
-                            : const AssetImage(
-                                    'assets/images/default_profile.png')
-                                as ImageProvider,
-                      ),
-                      title: Text(
-                        user['fullname'],
-                        style: const TextStyle(
-                            color: Color.fromARGB(255, 64, 61, 61)),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FriendProfilePage(
-                              userId: user['id'],
-                              currentUserId: widget.currentUserId,
-                              fullname: user['fullname'],
-                              profileImageUrl:
-                                  'http://10.39.5.40:3000${user['profile_image']}',
-                              backgroundImageUrl:
-                                  'http://10.39.5.40:3000${user['background_image'] ?? ''}',
+                child: searchResults.isNotEmpty
+                    ? ListView.builder(
+                        itemCount: searchResults.length,
+                        itemBuilder: (context, index) {
+                          final user = searchResults[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: user['profile_image'] != null
+                                  ? NetworkImage(
+                                      'http://192.168.242.162:3000${user['profile_image']}',
+                                    )
+                                  : const AssetImage(
+                                          'assets/images/default_profile.png')
+                                      as ImageProvider,
                             ),
+                            title: Text(
+                              user['fullname'],
+                              style: const TextStyle(
+                                  color: Color.fromARGB(255, 64, 61, 61)),
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FriendProfilePage(
+                                    userId: user['id'],
+                                    currentUserId: widget.currentUserId,
+                                    fullname: user['fullname'],
+                                    profileImageUrl:
+                                        'http://192.168.242.162:3000${user['profile_image']}',
+                                    backgroundImageUrl:
+                                        'http://192.168.242.162:3000${user['background_image'] ?? ''}',
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      )
+                    : const Center(
+                        child: Text(
+                          "ไม่มีชื่อผู้ใช้นี้",
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                        ),
+                      ),
               ),
             ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'ChatDetailPage.dart';
 
 class FriendProfilePage extends StatefulWidget {
   final int userId;
@@ -34,7 +35,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> checkFriendStatus() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://10.39.5.40:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
+          'http://192.168.242.162:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -55,7 +56,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> sendFriendRequest() async {
     try {
       final response = await http.post(
-        Uri.parse('http://10.39.5.40:3000/api/friends/request'),
+        Uri.parse('http://192.168.242.162:3000/api/friends/request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "sender_id": widget.currentUserId,
@@ -88,9 +89,50 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle, color: Colors.green),
-          const SizedBox(width: 5),
-          const Text("Friend"),
+          // 🔹 ปุ่ม "Friend" มีพื้นหลังสีฟ้า
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 206, 206, 206),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle,
+                    color: Color.fromARGB(255, 14, 230, 72)),
+                const SizedBox(width: 5),
+                const Text(
+                  "Friend",
+                  style: TextStyle(
+                      color: Color.fromARGB(255, 0, 0, 0),
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 1), // 🔹 เว้นระยะห่างระหว่างปุ่มและไอคอนแชท
+
+          // 🔹 ปุ่มแชทอยู่นอก Container
+          IconButton(
+            icon: const Icon(Icons.chat,
+                color: Color.fromARGB(
+                    255, 24, 24, 24)), // ใช้สีเดียวกับปุ่ม Friend
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatDetailPage(
+                    name: widget.fullname,
+                    avatar: widget.profileImageUrl.isNotEmpty
+                        ? widget.profileImageUrl
+                        : 'assets/images/default_profile.png',
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       );
     } else if (friendStatus == 'error') {
@@ -99,7 +141,19 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
     } else {
       return ElevatedButton(
         onPressed: sendFriendRequest,
-        child: const Text("Add Friend"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue, // 🔹 เปลี่ยนเป็นสีน้ำเงิน
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20), // 🔹 ทำให้โค้งมน
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        ),
+        child: const Text(
+          "Add Friend",
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold), // 🔹 เปลี่ยนข้อความเป็นสีขาว
+        ),
       );
     }
   }
