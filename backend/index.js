@@ -879,7 +879,7 @@ app.get('/api/friends/requests', async (req, res) => {
 
     try {
         const query = `
-            SELECT u.id, u.fullname, u.profile_image
+            SELECT u.id, u.fullname, u.profile_image, u.background_image
             FROM friends f
             JOIN users u ON f.sender_id = u.id
             WHERE f.receiver_id = $1 AND f.status = 'pending'
