@@ -7,7 +7,7 @@ import 'friendprofile.dart'; // ลิ้งค์ไปหน้าข้อม
 class AddFriendsPage extends StatefulWidget {
   final int currentUserId; // รับ userId ของผู้ใช้ที่ล็อกอิน
 
-  AddFriendsPage({required this.currentUserId});
+  const AddFriendsPage({super.key, required this.currentUserId});
 
   @override
   _AddFriendsPageState createState() => _AddFriendsPageState();
@@ -16,6 +16,19 @@ class AddFriendsPage extends StatefulWidget {
 class _AddFriendsPageState extends State<AddFriendsPage> {
   TextEditingController searchController = TextEditingController();
   List<dynamic> searchResults = [];
+  List<dynamic> friendRequests = [];
+  bool isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchFriendRequests();
+    searchController.addListener(() {
+      setState(() {
+        isSearching = searchController.text.isNotEmpty;
+      });
+    });
+  }
 
   Future<void> searchUsers(String query) async {
     if (query.isEmpty) {
@@ -25,8 +38,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
       return;
     }
 
-    final url = Uri.parse(
-        "http://192.168.242.248:3000/api/users/search?fullname=$query");
+    final url =
+        Uri.parse("http://10.39.5.40:3000/api/users/search?fullname=$query");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -41,6 +54,49 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
     }
   }
 
+  Future<void> fetchFriendRequests() async {
+    final response = await http.get(Uri.parse(
+        'http://10.39.5.40:3000/api/friends/requests?receiver_id=${widget.currentUserId}'));
+
+    if (response.statusCode == 200) {
+      setState(() {
+        friendRequests = json.decode(response.body);
+      });
+    }
+  }
+
+  Future<void> acceptFriendRequest(int senderId) async {
+    final response = await http.put(
+      Uri.parse('http://10.39.5.40:3000/api/friends/accept'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "sender_id": senderId,
+        "receiver_id": widget.currentUserId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        fetchFriendRequests();
+      });
+    }
+  }
+
+  Future<void> deleteFriendRequest(int senderId) async {
+    final response = await http.delete(
+      Uri.parse('http://10.39.5.40:3000/api/friends/delete'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "sender_id": senderId,
+        "receiver_id": widget.currentUserId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      fetchFriendRequests();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,7 +107,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage("assets/images/signup.png"),
+                image: const AssetImage("assets/images/signup.png"),
                 fit: BoxFit.cover,
                 colorFilter: ColorFilter.mode(
                   Colors.white.withOpacity(0.2),
@@ -67,7 +123,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
               ),
               // 🔹 ค้นหาใน AppBar
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -76,15 +132,15 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
                         blurRadius: 5,
-                        offset: Offset(0, 3),
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
                   child: TextField(
                     controller: searchController,
                     onChanged: (value) => searchUsers(value),
-                    style: TextStyle(color: Colors.black),
-                    decoration: InputDecoration(
+                    style: const TextStyle(color: Colors.black),
+                    decoration: const InputDecoration(
                       hintText: "Search",
                       hintStyle: TextStyle(color: Colors.grey),
                       prefixIcon: Icon(Icons.search, color: Colors.orange),
@@ -94,54 +150,127 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                   ),
                 ),
               ),
+
+              // 🔹 เลื่อนลงหากกำลังค้นหา
+              SizedBox(height: isSearching ? 250 : 20),
+
+              // 🔹 Title "คำขอเป็นเพื่อน" จะเลื่อนลงเมื่อพิมพ์ในช่องค้นหา
+              if (!isSearching)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "คำขอเป็นเพื่อน",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 🔹 แสดงรายการคำขอเป็นเพื่อน จะเลื่อนลงเมื่อพิมพ์ในช่องค้นหา
+              if (!isSearching)
+                Expanded(
+                  child: friendRequests.isNotEmpty
+                      ? ListView.builder(
+                          itemCount: friendRequests.length,
+                          itemBuilder: (context, index) {
+                            final friend = friendRequests[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage: friend['profile_image'] != null
+                                    ? NetworkImage(
+                                        'http://10.39.5.40:3000${friend['profile_image']}',
+                                      )
+                                    : const AssetImage(
+                                            'assets/images/default_profile.png')
+                                        as ImageProvider,
+                              ),
+                              title: Text(friend['fullname']),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.check,
+                                        color: Colors.green),
+                                    onPressed: () =>
+                                        acceptFriendRequest(friend['id']),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.red),
+                                    onPressed: () =>
+                                        deleteFriendRequest(friend['id']),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                      : const Center(
+                          child: Text(
+                            "ไม่มีคำขอเป็นเพื่อน",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                ),
             ],
           ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 15,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: searchResults.isEmpty
-                ? Center(
-                    child: Text(
-                      "Search for friends...",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: searchResults.length,
-                    itemBuilder: (context, index) {
-                      final user = searchResults[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: user['profile_image'] != null
-                              ? NetworkImage(
-                                  'http://192.168.242.248:3000${user['profile_image']}')
-                              : AssetImage('assets/images/default_profile.png')
-                                  as ImageProvider,
-                        ),
-                        title: Text(user['fullname'],
-                            style: TextStyle(
-                                color: const Color.fromARGB(255, 64, 61, 61))),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FriendProfilePage(
-                                userId: user['id'],
-                                fullname: user['fullname'], // ส่งชื่อไป
-                                profileImageUrl:
-                                    'http://192.168.242.248:3000${user['profile_image']}', // ส่งรูปโปรไฟล์ไป
-                                backgroundImageUrl:
-                                    'http://192.168.242.248:3000${user['background_image'] ?? ''}', // ส่งรูปพื้นหลังไป
-                              ),
+          // 🔹 แสดงผลลัพธ์การค้นหา
+          if (searchResults.isNotEmpty)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 70,
+              left: 20,
+              right: 20,
+              child: Container(
+                height: 250, // จำกัดความสูงของรายการที่ค้นหา
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ListView.builder(
+                  itemCount: searchResults.length,
+                  itemBuilder: (context, index) {
+                    final user = searchResults[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: user['profile_image'] != null
+                            ? NetworkImage(
+                                'http://10.39.5.40:3000${user['profile_image']}',
+                              )
+                            : const AssetImage(
+                                    'assets/images/default_profile.png')
+                                as ImageProvider,
+                      ),
+                      title: Text(
+                        user['fullname'],
+                        style: const TextStyle(
+                            color: Color.fromARGB(255, 64, 61, 61)),
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FriendProfilePage(
+                              userId: user['id'],
+                              currentUserId: widget.currentUserId,
+                              fullname: user['fullname'],
+                              profileImageUrl:
+                                  'http://10.39.5.40:3000${user['profile_image']}',
+                              backgroundImageUrl:
+                                  'http://10.39.5.40:3000${user['background_image'] ?? ''}',
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-          ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );

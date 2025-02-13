@@ -11,6 +11,14 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok') 
 );
 
+CREATE TABLE friends (
+    id SERIAL PRIMARY KEY,
+    sender_id INT REFERENCES users(id) ON DELETE CASCADE,  
+    receiver_id INT REFERENCES users(id) ON DELETE CASCADE, 
+    status VARCHAR(10) DEFAULT 'pending',  
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
+);
+
 CREATE TABLE post (
     post_id SERIAL PRIMARY KEY,            
     user_id INTEGER NOT NULL,             

@@ -811,6 +811,104 @@ app.get("/api/users/search", async (req, res) => {
     }
 });
 
+//API ส่งคำขอเป็นเพื่อน
+app.post('/api/friends/request', async (req, res) => {
+    const { sender_id, receiver_id } = req.body;
+
+    try {
+        const existingRequest = await pool.query(
+            'SELECT * FROM friends WHERE sender_id = $1 AND receiver_id = $2',
+            [sender_id, receiver_id]
+        );
+
+        if (existingRequest.rows.length > 0) {
+            return res.status(400).json({ message: 'Request already sent' });
+        }
+
+        await pool.query(
+            'INSERT INTO friends (sender_id, receiver_id, status) VALUES ($1, $2, $3)',
+            [sender_id, receiver_id, 'pending']
+        );
+        res.json({ message: 'Friend request sent' });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+//API ยอมรับคำขอเป็นเพื่อน
+app.put('/api/friends/accept', async (req, res) => {
+    const { sender_id, receiver_id } = req.body;
+
+    try {
+        await pool.query(
+            'UPDATE friends SET status = $1 WHERE sender_id = $2 AND receiver_id = $3',
+            ['accepted', sender_id, receiver_id]
+        );
+        res.json({ message: 'Friend request accepted' });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+//API เช็กสถานะเพื่อน
+app.get('/api/friends/status', async (req, res) => {
+    const { user_id, friend_id } = req.query;
+
+    try {
+        const result = await pool.query(
+            'SELECT status FROM friends WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
+            [user_id, friend_id]
+        );
+
+        if (result.rows.length > 0) {
+            res.json({ status: result.rows[0].status });
+        } else {
+            res.json({ status: 'none' });
+        }
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API ดึงรายการคำขอเป็นเพื่อนของ receiver
+app.get('/api/friends/requests', async (req, res) => {
+    const { receiver_id } = req.query;
+
+    try {
+        const query = `
+            SELECT u.id, u.fullname, u.profile_image
+            FROM friends f
+            JOIN users u ON f.sender_id = u.id
+            WHERE f.receiver_id = $1 AND f.status = 'pending'
+        `;
+        const result = await pool.query(query, [receiver_id]);
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API ลบคำขอเป็นเพื่อน
+app.delete('/api/friends/delete', async (req, res) => {
+    const { sender_id, receiver_id } = req.body;
+
+    try {
+        await pool.query(
+            'DELETE FROM friends WHERE sender_id = $1 AND receiver_id = $2',
+            [sender_id, receiver_id]
+        );
+        res.json({ message: 'Friend request deleted' });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
