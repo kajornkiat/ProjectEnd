@@ -24,6 +24,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    print("🟠 Current User ID: ${widget.currentUserId}"); // Debug Log
     fetchChatHistory();
     setupSocket();
   }
@@ -99,10 +100,11 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> fetchChatHistory() async {
-    setState(() => isLoading = true); // ✅ แสดง Loading Indicator
+    setState(() => isLoading = true);
 
     final url =
         'http://192.168.242.162:3000/api/chat/history?userId=${widget.currentUserId}';
+    print("📡 Fetching chat history from: $url"); // Debug Log
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -112,21 +114,34 @@ class _ChatPageState extends State<ChatPage> {
         if (mounted) {
           setState(() {
             chatHistory = data
-                .map((item) => {
-                      'id': item['id'],
-                      'fullname': item['fullname'] ?? 'Unknown',
-                      'profile_image': item['profile_image'] ?? '',
-                      'message': item['message'] ?? '',
-                      'created_at': item['created_at'] ?? '',
-                    })
-                .toList();
+                .map((item) {
+                  // ✅ ป้องกัน friend_id เป็น null
+                  int friendId =
+                      item.containsKey('friend_id') && item['friend_id'] != null
+                          ? int.tryParse(item['friend_id'].toString()) ?? -1
+                          : -1;
+
+                  print(
+                      "🟢 Loaded chat item: $item, friendId: $friendId"); // Debug Log
+
+                  return {
+                    'id': friendId > 0 ? friendId : null, // ✅ ป้องกันค่าผิดพลาด
+                    'fullname': item['fullname'] ?? 'Unknown',
+                    'profile_image': item['profile_image'] ?? '',
+                    'message': item['message'] ?? '',
+                    'created_at': item['created_at'] ?? '',
+                  };
+                })
+                .where((item) => item['id'] != null)
+                .toList(); // ✅ กรองค่าที่ id เป็น null ออก
           });
         }
       } else {
-        print("Failed to load chat history");
+        print(
+            "❌ Failed to load chat history, Status Code: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error loading chat history: $e");
+      print("⚠️ Error fetching chat history: $e");
     } finally {
       setState(() => isLoading = false);
     }
@@ -184,6 +199,8 @@ class _ChatPageState extends State<ChatPage> {
                             final userId = user['id'] is int
                                 ? user['id']
                                 : int.tryParse(user['id'].toString()) ?? 0;
+                            print(
+                                "🟢 userId: $userId from ${user['id']}"); // ✅ Debug log
 
                             String fullname = (user['fullname'] != null &&
                                     user['fullname'].toString().isNotEmpty)
@@ -220,6 +237,13 @@ class _ChatPageState extends State<ChatPage> {
                                 ),
                                 title: Text(user['fullname'] ?? 'Unknown'),
                                 onTap: () {
+                                  print(
+                                      "📢 Attempting to open chat with: ${user['id']} (${user['fullname']})"); // Debug Log
+
+                                  final userId = user['id'] is int
+                                      ? user['id']
+                                      : int.tryParse(user['id'].toString()) ??
+                                          0;
                                   if (userId > 0) {
                                     Navigator.push(
                                       context,
@@ -234,7 +258,8 @@ class _ChatPageState extends State<ChatPage> {
                                       ),
                                     );
                                   } else {
-                                    print("Invalid user ID: ${user['id']}");
+                                    print(
+                                        "⚠️ Invalid user ID: ${user['id']} (Cannot open chat page)");
                                   }
                                 },
                               ),

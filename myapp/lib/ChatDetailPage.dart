@@ -119,7 +119,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> fetchChatHistory() async {
     final url = Uri.parse(
-        'http://192.168.242.162:3000/api/chat/history?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
+        'http://192.168.242.162:3000/api/chat/messages?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
 
     try {
       final response = await http.get(url);

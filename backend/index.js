@@ -987,29 +987,32 @@ io.on("connection", (socket) => {
 });
 
 
-//api เพื่อนที่เคยแชทกัน
+//api ดึงรายชื่อเพื่อนที่เคยแชท
 app.get('/api/chat/history', async (req, res) => {
     const { userId } = req.query;
 
+    console.log(`📢 Fetching chat history for userId: ${userId}`); // Debug Log
+
     const query = `
     SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
-        u.id AS id, 
+        u.id AS friend_id, 
         u.fullname, 
         u.profile_image, 
         m.message, 
         m.created_at
     FROM messages m
     JOIN users u ON u.id = CASE 
-            WHEN m.sender_id = $1 THEN m.receiver_id 
-            ELSE m.sender_id 
-        END
+        WHEN m.sender_id = $1 THEN m.receiver_id 
+        ELSE m.sender_id 
+    END
     WHERE m.sender_id = $1 OR m.receiver_id = $1
     ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
-`;
+    `;
 
 
     try {
         const result = await pool.query(query, [userId]);
+        console.log("📌 Chat History API Response:", result.rows);  // ✅ Debug log
         res.status(200).json(result.rows);
     } catch (error) {
         console.error("Error fetching chat history:", error);
@@ -1017,6 +1020,25 @@ app.get('/api/chat/history', async (req, res) => {
     }
 });
 
+//api ดึงประวัติแชท
+app.get('/api/chat/messages', async (req, res) => {
+    const { sender_id, receiver_id } = req.query;
+
+    const query = `
+    SELECT * FROM messages 
+    WHERE (sender_id = $1 AND receiver_id = $2) 
+       OR (sender_id = $2 AND receiver_id = $1) 
+    ORDER BY created_at ASC;
+    `;
+
+    try {
+        const result = await pool.query(query, [sender_id, receiver_id]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching chat messages:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 
 server.listen(port, () => {
