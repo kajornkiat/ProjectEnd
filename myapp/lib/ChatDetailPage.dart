@@ -3,10 +3,18 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io'; // นำเข้าฟังก์ชัน File
 
 class ChatDetailPage extends StatefulWidget {
+  //final int currentUserId;
   final String name;
   final String avatar;
+  final int currentUserId; // เพิ่ม friendId เข้ามา
+  final int friendId;
 
-  ChatDetailPage({required this.name, required this.avatar});
+  ChatDetailPage({
+    required this.name,
+    required this.avatar,
+    required this.currentUserId,
+    required this.friendId,
+  });
 
   @override
   _ChatDetailPageState createState() => _ChatDetailPageState();
@@ -99,7 +107,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: AssetImage(widget.avatar),
+              backgroundImage:
+                  (widget.avatar != null && widget.avatar.isNotEmpty)
+                      ? NetworkImage(widget.avatar)
+                      : AssetImage('assets/images/default_profile.png')
+                          as ImageProvider,
             ),
             SizedBox(width: 10),
             Expanded(

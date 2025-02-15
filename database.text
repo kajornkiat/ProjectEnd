@@ -19,6 +19,15 @@ CREATE TABLE friends (
     created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
 );
 
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    sender_id INT REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id INT REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT,
+    message_type VARCHAR(10) DEFAULT 'text', 
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
+);
+
 CREATE TABLE post (
     post_id SERIAL PRIMARY KEY,            
     user_id INTEGER NOT NULL,             

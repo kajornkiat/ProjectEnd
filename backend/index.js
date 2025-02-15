@@ -925,8 +925,92 @@ app.get('/api/friends/pending/count', async (req, res) => {
     }
 });
 
+//api chat
+app.get('/api/friends/search', async (req, res) => {
+    const { userId, query } = req.query;
+
+    if (!query) {
+        return res.status(400).json({ error: 'Query is required' });
+    }
+
+    try {
+        const searchQuery = `
+            SELECT u.id, u.fullname, u.profile_image
+            FROM users u
+            JOIN friends f ON 
+                (f.sender_id = u.id AND f.receiver_id = $1) OR
+                (f.receiver_id = u.id AND f.sender_id = $1)
+            WHERE u.fullname ILIKE $2 AND u.id != $1 AND f.status = 'accepted'
+            ORDER BY u.fullname;
+        `;
+
+        const result = await pool.query(searchQuery, [userId, `%${query}%`]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error searching friends:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+//api messasge
+io.on("connection", (socket) => {
+    console.log("User connected:", socket.id);
+
+    socket.on("joinRoom", (userId) => {
+        socket.join(`user_${userId}`);
+        console.log(`User ${userId} joined room user_${userId}`);
+    });
+
+    socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
+        try {
+            const insertQuery = `
+                INSERT INTO messages (sender_id, receiver_id, message)
+                VALUES ($1, $2, $3) RETURNING *;
+            `;
+            const result = await pool.query(insertQuery, [senderId, receiverId, message]);
+            const newMessage = result.rows[0];
+
+            io.to(`user_${receiverId}`).emit("receiveMessage", newMessage);
+            io.to(`user_${senderId}`).emit("receiveMessage", newMessage);
+        } catch (error) {
+            console.error("Error sending message:", error);
+        }
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+    });
+});
 
 
-app.listen(port, () => {
+//api เพื่อนที่เคยแชทกัน
+app.get('/api/chat/history', async (req, res) => {
+    const { userId } = req.query;
+
+    const query = `
+        SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
+            u.id AS friend_id, 
+            u.fullname, 
+            u.profile_image, 
+            m.message, 
+            m.created_at
+        FROM messages m
+        JOIN users u ON (u.id = m.sender_id OR u.id = m.receiver_id)
+        WHERE (m.sender_id = $1 OR m.receiver_id = $1) AND u.id != $1
+        ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
+    `;
+
+    try {
+        const result = await pool.query(query, [userId]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching chat history:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
+
+server.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });

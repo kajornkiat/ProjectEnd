@@ -116,18 +116,24 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
           // 🔹 ปุ่มแชทอยู่นอก Container
           IconButton(
-            icon: const Icon(Icons.chat,
-                color: Color.fromARGB(
-                    255, 24, 24, 24)), // ใช้สีเดียวกับปุ่ม Friend
+            icon:
+                const Icon(Icons.chat, color: Color.fromARGB(255, 24, 24, 24)),
             onPressed: () {
+              String imageUrl = widget.profileImageUrl ?? '';
+
+              // ตรวจสอบว่า URL มี 'http' หรือไม่
+              if (!imageUrl.startsWith('http')) {
+                imageUrl = 'http://192.168.242.162:3000$imageUrl';
+              }
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ChatDetailPage(
+                    currentUserId: widget.currentUserId,
+                    friendId: widget.userId,
                     name: widget.fullname,
-                    avatar: widget.profileImageUrl.isNotEmpty
-                        ? widget.profileImageUrl
-                        : 'assets/images/default_profile.png',
+                    avatar: imageUrl, // ใช้ URL ที่ตรวจสอบแล้ว
                   ),
                 ),
               );

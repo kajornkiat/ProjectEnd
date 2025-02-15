@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
           });
         },
       ),
-      ChatPage(),
+      ChatPage(currentUserId: widget.userId),
       ProfilePage(userId: widget.userId),
     ];
   }
