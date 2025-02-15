@@ -961,22 +961,26 @@ io.on("connection", (socket) => {
         console.log(`User ${userId} joined room user_${userId}`);
     });
 
-    socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
+    socket.on("sendMessage", async ({ senderId, receiverId, message, message_Type }) => {
         try {
+            if (!senderId || !receiverId || !message || !message_Type) {
+                console.error("❌ Missing required fields in sendMessage");
+                return;
+            }
+
             const insertQuery = `
-                INSERT INTO messages (sender_id, receiver_id, message)
-                VALUES ($1, $2, $3) RETURNING *;
+                INSERT INTO messages (sender_id, receiver_id, message, message_type)
+                VALUES ($1, $2, $3, $4) RETURNING *;
             `;
-            const result = await pool.query(insertQuery, [senderId, receiverId, message]);
+            const result = await pool.query(insertQuery, [senderId, receiverId, message, message_Type]);
             const newMessage = result.rows[0];
 
             io.to(`user_${receiverId}`).emit("receiveMessage", newMessage);
             io.to(`user_${senderId}`).emit("receiveMessage", newMessage);
         } catch (error) {
-            console.error("Error sending message:", error);
+            console.error("❌ Error sending message:", error);
         }
     });
-
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
     });
@@ -988,17 +992,21 @@ app.get('/api/chat/history', async (req, res) => {
     const { userId } = req.query;
 
     const query = `
-        SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
-            u.id AS friend_id, 
-            u.fullname, 
-            u.profile_image, 
-            m.message, 
-            m.created_at
-        FROM messages m
-        JOIN users u ON (u.id = m.sender_id OR u.id = m.receiver_id)
-        WHERE (m.sender_id = $1 OR m.receiver_id = $1) AND u.id != $1
-        ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
-    `;
+    SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
+        u.id AS id, 
+        u.fullname, 
+        u.profile_image, 
+        m.message, 
+        m.created_at
+    FROM messages m
+    JOIN users u ON u.id = CASE 
+            WHEN m.sender_id = $1 THEN m.receiver_id 
+            ELSE m.sender_id 
+        END
+    WHERE m.sender_id = $1 OR m.receiver_id = $1
+    ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
+`;
+
 
     try {
         const result = await pool.query(query, [userId]);
