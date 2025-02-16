@@ -53,6 +53,15 @@ class _ViewsPageState extends State<ViewsPage> {
     setupSocket();
   }
 
+  @override
+  void dispose() {
+    socket.off('newReview');
+    socket.off('deleteReview');
+    socket.dispose(); // ปิดการเชื่อมต่อ
+    reviewController.dispose();
+    super.dispose();
+  }
+
   void setupSocket() {
     socket = IO.io('http://192.168.242.162:3000', <String, dynamic>{
       'transports': ['websocket'],
@@ -65,36 +74,37 @@ class _ViewsPageState extends State<ViewsPage> {
     socket.on('newReview', (data) {
       if (data['category'] == widget.category &&
           data['place_id'] == widget.place_id) {
-        setState(() {
-          reviews.insert(0, data); // เพิ่มรีวิวใหม่ด้านบน
-          averageRating = ((averageRating * reviewCount) + data['rating']) /
-              (reviewCount + 1);
-          reviewCount++;
-        });
-        widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
+        if (mounted) {
+          setState(() {
+            reviews.insert(0, data);
+            averageRating = ((averageRating * reviewCount) + data['rating']) /
+                (reviewCount + 1);
+            reviewCount++;
+          });
+          widget.refreshCallback();
+        }
       }
     });
 
     // ✅ ฟัง event "deleteReview" และลบรีวิวที่ตรงกับ ID
     socket.on('deleteReview', (reviewId) {
-      setState(() {
-        reviews.removeWhere((review) => review['id'] == reviewId);
+      if (mounted) {
+        setState(() {
+          reviews.removeWhere((review) => review['id'] == reviewId);
+          if (reviews.isNotEmpty) {
+            final totalRating = reviews.fold<double>(0.0, (sum, review) {
+              final rating = review['rating'];
+              return sum + (rating is num ? rating : 0);
+            });
 
-        // คำนวณค่าเฉลี่ยใหม่
-        if (reviews.isNotEmpty) {
-          final totalRating = reviews.fold<double>(0.0, (sum, review) {
-            final rating = review['rating'];
-            return sum + (rating is num ? rating : 0);
-          });
-
-          averageRating = totalRating / reviews.length;
-        } else {
-          averageRating = 0.0;
-        }
-
-        reviewCount = reviews.length;
-      });
-      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
+            averageRating = totalRating / reviews.length;
+          } else {
+            averageRating = 0.0;
+          }
+          reviewCount = reviews.length;
+        });
+        widget.refreshCallback();
+      }
     });
   }
 
@@ -118,12 +128,14 @@ class _ViewsPageState extends State<ViewsPage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      setState(() {
-        reviews = data['reviews'] ?? [];
-        averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
-        reviewCount = (data['reviewCount'] as num?)?.toInt() ?? 0;
-      });
-      widget.refreshCallback(); // 📌 อัปเดตหน้า select.dart
+      if (mounted) {
+        setState(() {
+          reviews = data['reviews'] ?? [];
+          averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
+          reviewCount = (data['reviewCount'] as num?)?.toInt() ?? 0;
+        });
+        widget.refreshCallback();
+      } // 📌 อัปเดตหน้า select.dart
       print("Fetched reviews: $reviews"); // ✅ ตรวจสอบค่าที่ได้จาก API
     } else {
       print("Error fetching reviews: ${response.statusCode}");
@@ -381,7 +393,7 @@ class _ViewsPageState extends State<ViewsPage> {
                                       as ImageProvider,
                               backgroundColor: Colors.grey[300],
                             ),
-                            title: Text(review['username']),
+                            title: Text(review['username'] ?? 'Unknown User'),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [

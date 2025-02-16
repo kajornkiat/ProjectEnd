@@ -70,21 +70,23 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
 
     socket.on('delete_post', (data) {
       int postId = data['post_id'];
+      if (!mounted) return; // ✅ ป้องกันการเรียก setState() หลังจาก dispose()
       setState(() {
         posts.removeWhere((post) => post['post_id'] == postId);
       });
     });
 
     socket.on('new_comment', (data) {
-      print("Socket received new comment: $data"); // ✅ Debugging
+      if (!mounted) return; // ✅ ป้องกัน error
       int postId = data['post_id'];
-      Map<String, dynamic> newComment = data['comment']; // ✅ Ensure it's a Map
+      Map<String, dynamic> newComment = data['comment'];
+
       if (postComments.containsKey(postId)) {
-        postComments[postId]!.add(data['comment']);
+        postComments[postId]!.add(newComment);
       } else {
-        postComments[postId] = [data['comment']];
+        postComments[postId] = [newComment];
       }
-      setState(() {});
+      setState(() {}); // ✅ เช็คแล้วว่า mounted
     });
 
     socket.on('delete_comment', (data) {
@@ -122,6 +124,10 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
   void dispose() {
     postController.dispose();
     searchController.dispose(); // ✅ ล้าง memory เพื่อป้องกัน memory leak
+    // ✅ ยกเลิก Event Listener ของ socket
+    socket.off('delete_post');
+    socket.off('new_comment');
+    socket.off('delete_comment');
     commentControllers.forEach((_, controller) => controller.dispose());
     super.dispose();
   }

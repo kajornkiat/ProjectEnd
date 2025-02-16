@@ -641,7 +641,7 @@ app.get('/api/comments/:post_id', async (req, res) => {
 
 // DELETE: ลบคอมเมนต์
 app.delete('/api/comments/:comment_id', authenticateToken, async (req, res) => {
-    const comment_id = req.params.comment_id;
+    const comment_id = parseInt(req.params.comment_id, 10);
     const user_id = req.user.id;
 
     try {
