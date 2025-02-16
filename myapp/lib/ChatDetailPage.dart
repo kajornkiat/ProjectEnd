@@ -60,23 +60,26 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       int receiverId = data['receiver_id'];
       String messageText = data['message'] ?? ''; // 🔹 ป้องกัน `null`
       String messageType = data['message_type'] ?? 'text'; // 🔹 ป้องกัน `null`
-      print("📩 Received message: $data"); // 🔹 Debug ดูข้อมูลที่ได้รับ
-      _handleIncomingMessage(data);
+      String messageId = data['message_id'] ?? ''; // ใช้ message_id ป้องกันซ้ำ
+
+      print("📩 Received message: $data");
 
       int chatPartnerId =
           senderId == widget.currentUserId ? receiverId : senderId;
 
       if (chatPartnerId == widget.friendId) {
-        // ✅ แยกเฉพาะแชทที่กำลังดูอยู่
         if (mounted) {
           setState(() {
-            messagesMap.putIfAbsent(
-                chatPartnerId, () => []); // ถ้ายังไม่มีให้สร้าง List ใหม่
-            messagesMap[chatPartnerId]!.add({
-              'text': messageText,
-              'isMe': senderId == widget.currentUserId,
-              'type': messageType,
-            });
+            messagesMap.putIfAbsent(chatPartnerId, () => []);
+            // ✅ ป้องกันการเพิ่มข้อความซ้ำ
+            if (!messagesMap[chatPartnerId]!
+                .any((msg) => msg['text'] == messageText)) {
+              messagesMap[chatPartnerId]!.add({
+                'text': messageText,
+                'isMe': senderId == widget.currentUserId,
+                'type': 'text',
+              });
+            }
           });
         }
       }
@@ -168,7 +171,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         'senderId': widget.currentUserId,
         'receiverId': widget.friendId,
         'message': imageUrl,
-        'message_Type': 'image', // 🔹 ตรงกับคีย์ของเซิร์ฟเวอร์
+        'message_type': 'image', // 🔹 ตรงกับคีย์ของเซิร์ฟเวอร์
       });
 
       // 3️⃣ อัปเดต UI เฉพาะแชทของ friendId
