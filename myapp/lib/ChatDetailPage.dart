@@ -40,7 +40,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   void connectSocket() {
-    socket = IO.io('http://192.168.242.162:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.2:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true, // เปิดให้มีการ reconnect
@@ -58,9 +58,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     socket.on('receiveMessage', (data) {
       int senderId = data['sender_id'];
       int receiverId = data['receiver_id'];
-      String messageText = data['message'] ?? ''; // 🔹 ป้องกัน `null`
-      String messageType = data['message_type'] ?? 'text'; // 🔹 ป้องกัน `null`
-      String messageId = data['message_id'] ?? ''; // ใช้ message_id ป้องกันซ้ำ
+      String messageText = data['message'] ?? '';
+      String senderName = data['fullname'] ?? 'Unknown'; // ✅ ใช้ `fullname`
 
       print("📩 Received message: $data");
 
@@ -71,12 +70,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         if (mounted) {
           setState(() {
             messagesMap.putIfAbsent(chatPartnerId, () => []);
-            // ✅ ป้องกันการเพิ่มข้อความซ้ำ
             if (!messagesMap[chatPartnerId]!
                 .any((msg) => msg['text'] == messageText)) {
               messagesMap[chatPartnerId]!.add({
                 'text': messageText,
                 'isMe': senderId == widget.currentUserId,
+                'fullname': senderName, // ✅ แสดงชื่อ
                 'type': 'text',
               });
             }
@@ -122,7 +121,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> fetchChatHistory() async {
     final url = Uri.parse(
-        'http://192.168.242.162:3000/api/chat/messages?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
+        'http://10.39.5.2:3000/api/chat/messages?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
 
     try {
       final response = await http.get(url);
@@ -193,7 +192,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Future<String?> uploadImageToServer(XFile image) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.242.162:3000/api/upload_image'),
+      Uri.parse('http://10.39.5.2:3000/api/upload_image'),
     );
 
     request.files.add(await http.MultipartFile.fromPath('image', image.path));
@@ -226,7 +225,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     int senderId = data['sender_id'];
     int receiverId = data['receiver_id'];
     String messageText = data['message'] ?? ''; // 🔹 ป้องกัน `null`
-    String messageType = data['type'] ?? 'text'; // 🔹 ป้องกัน `null`
+    String messageType = data['message_type'] ?? 'text'; // 🔹 ป้องกัน `null`
 
     if ((senderId == widget.currentUserId && receiverId == widget.friendId) ||
         (receiverId == widget.currentUserId && senderId == widget.friendId)) {

@@ -30,7 +30,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void setupSocket() {
-    socket = io.io('http://192.168.242.162:3000', <String, dynamic>{
+    socket = io.io('http://10.39.5.2:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -44,15 +44,19 @@ class _ChatPageState extends State<ChatPage> {
     socket.on("receiveMessage", (data) {
       print("New message received: $data");
 
+      int senderId = data['sender_id'];
+      int receiverId = data['receiver_id'];
+      String senderName =
+          data['fullname'] ?? 'Unknown'; // ✅ ใช้ fullname จาก WebSocket
+      String messageText = data['message'] ?? '';
+
       if (mounted) {
         setState(() {
           chatHistory.insert(0, {
-            'id': data['sender_id'] == widget.currentUserId
-                ? data['receiver_id']
-                : data['sender_id'],
-            'fullname': data['fullname'] ?? 'Unknown',
+            'id': senderId == widget.currentUserId ? receiverId : senderId,
+            'fullname': senderName, // ✅ แสดงชื่อผู้ส่ง
             'profile_image': data['profile_image'] ?? '',
-            'message': data['message'] ?? '',
+            'message': messageText,
             'created_at': data['created_at'] ?? '',
           });
         });
@@ -77,7 +81,7 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     final url =
-        'http://192.168.242.162:3000/api/friends/search?userId=${widget.currentUserId}&query=$query';
+        'http://10.39.5.2:3000/api/friends/search?userId=${widget.currentUserId}&query=$query';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -103,7 +107,7 @@ class _ChatPageState extends State<ChatPage> {
     setState(() => isLoading = true);
 
     final url =
-        'http://192.168.242.162:3000/api/chat/history?userId=${widget.currentUserId}';
+        'http://10.39.5.2:3000/api/chat/history?userId=${widget.currentUserId}';
     print("📡 Fetching chat history from: $url"); // Debug Log
 
     try {
@@ -210,7 +214,7 @@ class _ChatPageState extends State<ChatPage> {
                             String imageUrl = user['profile_image'] ?? '';
                             if (imageUrl.isNotEmpty &&
                                 !imageUrl.startsWith('http')) {
-                              imageUrl = 'http://192.168.242.162:3000$imageUrl';
+                              imageUrl = 'http://10.39.5.2:3000$imageUrl';
                             }
 
                             return Container(

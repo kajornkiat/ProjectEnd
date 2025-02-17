@@ -35,7 +35,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> checkFriendStatus() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://192.168.242.162:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
+          'http://10.39.5.2:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -56,7 +56,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> sendFriendRequest() async {
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.242.162:3000/api/friends/request'),
+        Uri.parse('http://10.39.5.2:3000/api/friends/request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "sender_id": widget.currentUserId,
@@ -123,7 +123,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
               // ตรวจสอบว่า URL มี 'http' หรือไม่
               if (!imageUrl.startsWith('http')) {
-                imageUrl = 'http://192.168.242.162:3000$imageUrl';
+                imageUrl = 'http://10.39.5.2:3000$imageUrl';
               }
 
               Navigator.push(

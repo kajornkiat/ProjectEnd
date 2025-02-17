@@ -961,26 +961,41 @@ io.on("connection", (socket) => {
         console.log(`User ${userId} joined room user_${userId}`);
     });
 
-    socket.on("sendMessage", async ({ senderId, receiverId, message, message_Type }) => {
+    socket.on("sendMessage", async (data) => {
+        const { senderId, receiverId, message } = data;
+
         try {
-            if (!senderId || !receiverId || !message || !message_Type) {
-                console.error("❌ Missing required fields in sendMessage");
-                return;
-            }
+            const userQuery = "SELECT fullname, profile_image FROM users WHERE id = $1";
+            const userResult = await pool.query(userQuery, [senderId]);
 
-            const insertQuery = `
-                INSERT INTO messages (sender_id, receiver_id, message, message_type)
-                VALUES ($1, $2, $3, $4) RETURNING *;
+            const senderName = userResult.rows[0]?.fullname || "Unknown";
+            const profileImage = userResult.rows[0]?.profile_image || "";
+
+            const messageQuery = `
+            INSERT INTO messages (sender_id, receiver_id, message, message_type) 
+            VALUES ($1, $2, $3, 'text') RETURNING id, created_at;
             `;
-            const result = await pool.query(insertQuery, [senderId, receiverId, message, message_Type]);
-            const newMessage = result.rows[0];
+            const messageResult = await pool.query(messageQuery, [senderId, receiverId, message]);
 
-            io.to(`user_${receiverId}`).emit("receiveMessage", newMessage);
-            io.to(`user_${senderId}`).emit("receiveMessage", newMessage);
+            const messageId = messageResult.rows[0].id;
+            const createdAt = messageResult.rows[0].created_at;
+
+            io.to(receiverId).emit("receiveMessage", {
+                sender_id: senderId,
+                receiver_id: receiverId,
+                fullname: senderName, // ✅ ส่งชื่อไปด้วย
+                profile_image: profileImage,
+                message: message,
+                message_id: messageId,
+                created_at: createdAt
+            });
+
+            console.log(`📨 Message sent from ${senderName} (${senderId}) to ${receiverId}: ${message}`);
         } catch (error) {
             console.error("❌ Error sending message:", error);
         }
     });
+
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
     });
@@ -996,8 +1011,8 @@ app.get('/api/chat/history', async (req, res) => {
     const query = `
     SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
         u.id AS friend_id, 
-        u.fullname, 
-        u.profile_image, 
+        COALESCE(u.fullname, 'Unknown') AS fullname, 
+        COALESCE(u.profile_image, '') AS profile_image, 
         m.message, 
         m.created_at
     FROM messages m

@@ -63,7 +63,7 @@ class _ViewsPageState extends State<ViewsPage> {
   }
 
   void setupSocket() {
-    socket = IO.io('http://192.168.242.162:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.2:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -124,7 +124,7 @@ class _ViewsPageState extends State<ViewsPage> {
 
   Future<void> fetchReviews() async {
     final response = await http.get(Uri.parse(
-        'http://192.168.242.162:3000/api/reviews/${widget.category}/${widget.place_id}'));
+        'http://10.39.5.2:3000/api/reviews/${widget.category}/${widget.place_id}'));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -151,7 +151,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://192.168.242.162:3000/api/reviews");
+    final url = Uri.parse("http://10.39.5.2:3000/api/reviews");
     final response = await http.post(
       url,
       headers: {
@@ -243,7 +243,7 @@ class _ViewsPageState extends State<ViewsPage> {
       return;
     }
 
-    final url = Uri.parse("http://192.168.242.162:3000/api/reviews/$reviewId");
+    final url = Uri.parse("http://10.39.5.2:3000/api/reviews/$reviewId");
     final response = await http.delete(
       url,
       headers: {
@@ -388,7 +388,7 @@ class _ViewsPageState extends State<ViewsPage> {
                             leading: CircleAvatar(
                               backgroundImage: review['profile_image'] != null
                                   ? NetworkImage(
-                                      'http://192.168.242.162:3000${review['profile_image']}')
+                                      'http://10.39.5.2:3000${review['profile_image']}')
                                   : AssetImage('assets/default_profile.png')
                                       as ImageProvider,
                               backgroundColor: Colors.grey[300],
