@@ -980,15 +980,19 @@ io.on("connection", (socket) => {
             const messageId = messageResult.rows[0].id;
             const createdAt = messageResult.rows[0].created_at;
 
-            io.to(receiverId).emit("receiveMessage", {
+            const newMessage = {
                 sender_id: senderId,
                 receiver_id: receiverId,
-                fullname: senderName, // ✅ ส่งชื่อไปด้วย
+                fullname: senderName,
                 profile_image: profileImage,
                 message: message,
                 message_id: messageId,
                 created_at: createdAt
-            });
+            };
+
+            // 🔥 ส่งไปยังห้องของผู้รับและผู้ส่ง
+            io.to(`user_${receiverId}`).emit("receiveMessage", newMessage);
+            io.to(`user_${senderId}`).emit("receiveMessage", newMessage);
 
             console.log(`📨 Message sent from ${senderName} (${senderId}) to ${receiverId}: ${message}`);
         } catch (error) {

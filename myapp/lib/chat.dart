@@ -46,19 +46,36 @@ class _ChatPageState extends State<ChatPage> {
 
       int senderId = data['sender_id'];
       int receiverId = data['receiver_id'];
-      String senderName =
-          data['fullname'] ?? 'Unknown'; // ✅ ใช้ fullname จาก WebSocket
+      String senderName = data['fullname'] ?? 'Unknown';
       String messageText = data['message'] ?? '';
+
+      int friendId = senderId == widget.currentUserId ? receiverId : senderId;
 
       if (mounted) {
         setState(() {
-          chatHistory.insert(0, {
-            'id': senderId == widget.currentUserId ? receiverId : senderId,
-            'fullname': senderName, // ✅ แสดงชื่อผู้ส่ง
-            'profile_image': data['profile_image'] ?? '',
-            'message': messageText,
-            'created_at': data['created_at'] ?? '',
-          });
+          int existingChatIndex =
+              chatHistory.indexWhere((chat) => chat['id'] == friendId);
+          if (existingChatIndex != -1) {
+            // 🔄 อัปเดตข้อความล่าสุด
+            chatHistory[existingChatIndex]['message'] = messageText;
+            chatHistory[existingChatIndex]['created_at'] =
+                data['created_at'] ?? '';
+
+            // 🔄 ย้ายแชทไปบนสุด
+            var updatedChat = chatHistory.removeAt(existingChatIndex);
+            chatHistory.insert(0, updatedChat);
+          } else {
+            // ✅ ตรวจสอบว่า friendId มีอยู่แล้วหรือไม่
+            if (!chatHistory.any((chat) => chat['id'] == friendId)) {
+              chatHistory.insert(0, {
+                'id': friendId,
+                'fullname': senderName,
+                'profile_image': data['profile_image'] ?? '',
+                'message': messageText,
+                'created_at': data['created_at'] ?? '',
+              });
+            }
+          }
         });
       }
     });
@@ -105,44 +122,44 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> fetchChatHistory() async {
     setState(() => isLoading = true);
-
     final url =
         'http://10.39.5.2:3000/api/chat/history?userId=${widget.currentUserId}';
-    print("📡 Fetching chat history from: $url"); // Debug Log
 
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        Set<int> uniqueIds = {};
 
         if (mounted) {
           setState(() {
             chatHistory = data
                 .map((item) {
-                  // ✅ ป้องกัน friend_id เป็น null
                   int friendId =
-                      item.containsKey('friend_id') && item['friend_id'] != null
-                          ? int.tryParse(item['friend_id'].toString()) ?? -1
-                          : -1;
-
-                  print(
-                      "🟢 Loaded chat item: $item, friendId: $friendId"); // Debug Log
-
+                      int.tryParse(item['friend_id'].toString()) ?? -1;
+                  if (friendId <= 0 || uniqueIds.contains(friendId)) {
+                    return null;
+                  }
+                  uniqueIds.add(friendId);
                   return {
-                    'id': friendId > 0 ? friendId : null, // ✅ ป้องกันค่าผิดพลาด
+                    'id': friendId,
                     'fullname': item['fullname'] ?? 'Unknown',
                     'profile_image': item['profile_image'] ?? '',
                     'message': item['message'] ?? '',
                     'created_at': item['created_at'] ?? '',
                   };
                 })
-                .where((item) => item['id'] != null)
-                .toList(); // ✅ กรองค่าที่ id เป็น null ออก
+                .where((item) => item != null)
+                .cast<Map<String, dynamic>>()
+                .toList();
+
+            // ✅ เรียงลำดับตามเวลาล่าสุด
+            chatHistory.sort((a, b) =>
+                (b['created_at'] ?? '').compareTo(a['created_at'] ?? ''));
           });
         }
       } else {
-        print(
-            "❌ Failed to load chat history, Status Code: ${response.statusCode}");
+        print("❌ Failed to load chat history: ${response.statusCode}");
       }
     } catch (e) {
       print("⚠️ Error fetching chat history: $e");
