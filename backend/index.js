@@ -962,7 +962,8 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (data) => {
-        const { senderId, receiverId, message } = data;
+        console.log("📩 Received data:", data);
+        const { senderId, receiverId, message, messageType } = data;
 
         try {
             const userQuery = "SELECT fullname, profile_image FROM users WHERE id = $1";
@@ -973,12 +974,17 @@ io.on("connection", (socket) => {
 
             const messageQuery = `
             INSERT INTO messages (sender_id, receiver_id, message, message_type) 
-            VALUES ($1, $2, $3, 'text') RETURNING id, created_at;
+            VALUES ($1, $2, $3, $4) RETURNING id, created_at;
             `;
-            const messageResult = await pool.query(messageQuery, [senderId, receiverId, message]);
 
-            const messageId = messageResult.rows[0].id;
-            const createdAt = messageResult.rows[0].created_at;
+            const messageResult = await pool.query(messageQuery, [
+                senderId,
+                receiverId,
+                message,
+                messageType
+            ]);
+
+            console.log("✅ Saved to DB: ", messageResult.rows[0]);
 
             const newMessage = {
                 sender_id: senderId,
@@ -986,11 +992,11 @@ io.on("connection", (socket) => {
                 fullname: senderName,
                 profile_image: profileImage,
                 message: message,
-                message_id: messageId,
-                created_at: createdAt
+                message_type: messageType,
+                message_id: messageResult.rows[0].id,
+                created_at: messageResult.rows[0].created_at
             };
 
-            // 🔥 ส่งไปยังห้องของผู้รับและผู้ส่ง
             io.to(`user_${receiverId}`).emit("receiveMessage", newMessage);
             io.to(`user_${senderId}`).emit("receiveMessage", newMessage);
 
@@ -1000,10 +1006,12 @@ io.on("connection", (socket) => {
         }
     });
 
+
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
     });
 });
+
 
 
 //api ดึงรายชื่อเพื่อนที่เคยแชท
@@ -1044,7 +1052,8 @@ app.get('/api/chat/messages', async (req, res) => {
     const { sender_id, receiver_id } = req.query;
 
     const query = `
-    SELECT * FROM messages 
+    SELECT id, sender_id, receiver_id, message, message_type, created_at 
+    FROM messages 
     WHERE (sender_id = $1 AND receiver_id = $2) 
        OR (sender_id = $2 AND receiver_id = $1) 
     ORDER BY created_at ASC;
@@ -1057,6 +1066,36 @@ app.get('/api/chat/messages', async (req, res) => {
         console.error("Error fetching chat messages:", error);
         res.status(500).json({ error: "Server error" });
     }
+});
+
+
+// ตั้งค่า multer สำหรับอัปโหลดไฟล์ไปที่โฟลเดอร์ `messages/`
+const messagestorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, 'messages'); // เปลี่ยนเป็นโฟลเดอร์ `messages/`
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true }); // สร้างโฟลเดอร์หากไม่มีอยู่
+        }
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname)); // ตั้งชื่อไฟล์ด้วย timestamp
+    },
+});
+
+const messageupload = multer({ storage: messagestorage });
+
+// เสิร์ฟไฟล์จาก `messages/`
+app.use('/messages', express.static(path.join(__dirname, 'messages')));
+
+// API สำหรับอัปโหลดรูปภาพ
+app.post("/api/messages_image", messageupload.single("image"), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "No image uploaded" });
+    }
+
+    const imageUrl = `/messages/${req.file.filename}`; // URL ของรูปที่ถูกเก็บในโฟลเดอร์ `messages/`
+    res.status(200).json({ imageUrl });
 });
 
 

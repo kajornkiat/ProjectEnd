@@ -59,9 +59,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       int senderId = data['sender_id'];
       int receiverId = data['receiver_id'];
       String messageText = data['message'] ?? '';
-      String senderName = data['fullname'] ?? 'Unknown'; // ✅ ใช้ `fullname`
+      String senderName = data['fullname'] ?? 'Unknown';
+      String messageType = data['message_type'] ?? 'text';
 
       print("📩 Received message: $data");
+
+      // ✅ ป้องกันการเพิ่มข้อความซ้ำที่ฝั่งผู้ส่งเอง
+      if (senderId == widget.currentUserId) {
+        print("🚫 Ignore message from self: $data");
+        return; // ออกจากฟังก์ชันทันที
+      }
 
       int chatPartnerId =
           senderId == widget.currentUserId ? receiverId : senderId;
@@ -70,14 +77,39 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         if (mounted) {
           setState(() {
             messagesMap.putIfAbsent(chatPartnerId, () => []);
-            if (!messagesMap[chatPartnerId]!
-                .any((msg) => msg['text'] == messageText)) {
-              messagesMap[chatPartnerId]!.add({
-                'text': messageText,
-                'isMe': senderId == widget.currentUserId,
-                'fullname': senderName, // ✅ แสดงชื่อ
-                'type': 'text',
-              });
+
+            if (messageType == 'image') {
+              String imageUrl = messageText.startsWith('http')
+                  ? messageText
+                  : "http://10.39.5.2:3000$messageText";
+
+              // ✅ ป้องกันรูปซ้ำ (เช็คจาก imagePath และ senderId)
+              bool isDuplicate = messagesMap[chatPartnerId]!.any((msg) =>
+                  msg['imagePath'] == imageUrl &&
+                  msg['isMe'] == (senderId == widget.currentUserId));
+
+              if (!isDuplicate) {
+                messagesMap[chatPartnerId]!.add({
+                  'imagePath': imageUrl,
+                  'isMe': senderId == widget.currentUserId,
+                  'fullname': senderName,
+                  'type': 'image',
+                });
+              }
+            } else {
+              // ✅ ป้องกันข้อความซ้ำ
+              bool isDuplicate = messagesMap[chatPartnerId]!.any((msg) =>
+                  msg['text'] == messageText &&
+                  msg['isMe'] == (senderId == widget.currentUserId));
+
+              if (!isDuplicate) {
+                messagesMap[chatPartnerId]!.add({
+                  'text': messageText,
+                  'isMe': senderId == widget.currentUserId,
+                  'fullname': senderName,
+                  'type': 'text',
+                });
+              }
             }
           });
         }
@@ -127,24 +159,31 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print("📜 Chat History Loaded: $data");
+        print("📜 Chat History Loaded: $data"); // ✅ Debug log
 
         if (mounted) {
           setState(() {
             messagesMap[widget.friendId] = []; // ✅ เคลียร์ของเพื่อนที่เลือก
-            data.sort((a, b) {
-              String? createdA = a['created_at'];
-              String? createdB = b['created_at'];
-              if (createdA == null || createdB == null)
-                return 0; // 🔹 ป้องกัน `null`
-              return DateTime.parse(createdA)
-                  .compareTo(DateTime.parse(createdB));
-            });
             for (var chat in data) {
+              bool isImage = chat['message_type'] == 'image';
+
+              // ✅ แก้ไขให้ URL ถูกต้อง
+              String? imageUrl;
+              if (isImage) {
+                imageUrl = chat['message'].startsWith('http')
+                    ? chat['message'] // URL สมบูรณ์แล้ว
+                    : "http://10.39.5.2:3000${chat['message']}"; // เพิ่ม domain
+              }
+
+              print("🔵 Processed Image URL: $imageUrl"); // ✅ Debug
+
               messagesMap[widget.friendId]!.add({
-                'text': chat['message'] ?? '', // 🔹 ป้องกัน `null`
+                'text': isImage
+                    ? null
+                    : chat['message'], // ✅ ถ้าเป็นรูป ไม่เก็บ text
+                'imagePath': imageUrl, // ✅ เก็บ URL ของรูป
                 'isMe': chat['sender_id'] == widget.currentUserId,
-                'type': chat['message_type'] ?? 'text', // 🔹 ป้องกัน `null`
+                'type': isImage ? 'image' : 'text',
               });
             }
           });
@@ -170,7 +209,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         'senderId': widget.currentUserId,
         'receiverId': widget.friendId,
         'message': imageUrl,
-        'message_type': 'image', // 🔹 ตรงกับคีย์ของเซิร์ฟเวอร์
+        'messageType': 'image', // 🔹 ตรงกับคีย์ของเซิร์ฟเวอร์
       });
 
       // 3️⃣ อัปเดต UI เฉพาะแชทของ friendId
@@ -192,7 +231,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Future<String?> uploadImageToServer(XFile image) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.2:3000/api/upload_image'),
+      Uri.parse('http://10.39.5.2:3000/api/messages_image'),
     );
 
     request.files.add(await http.MultipartFile.fromPath('image', image.path));
@@ -202,7 +241,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       if (response.statusCode == 200) {
         var responseData = await response.stream.bytesToString();
         var jsonResponse = json.decode(responseData);
-        return jsonResponse['imageUrl']; // สมมติว่าเซิร์ฟเวอร์คืน URL ของรูป
+
+        print("🚀 Upload response: $jsonResponse"); // ✅ เพิ่มตรงนี้
+
+        // 🔹 ตรวจสอบว่าเซิร์ฟเวอร์ส่ง URL กลับมาถูกต้องหรือไม่
+        String? imagePath = jsonResponse['imageUrl'];
+
+        print("✅ Final Image URL: $imagePath");
+        return imagePath;
       } else {
         print("❌ อัปโหลดรูปไม่สำเร็จ: ${response.statusCode}");
         return null;
@@ -227,16 +273,31 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     String messageText = data['message'] ?? ''; // 🔹 ป้องกัน `null`
     String messageType = data['message_type'] ?? 'text'; // 🔹 ป้องกัน `null`
 
+    bool isImageUrl = Uri.tryParse(messageText)?.hasAbsolutePath == true;
+
     if ((senderId == widget.currentUserId && receiverId == widget.friendId) ||
         (receiverId == widget.currentUserId && senderId == widget.friendId)) {
       if (mounted) {
         setState(() {
           messagesMap.putIfAbsent(widget.friendId, () => []);
-          messagesMap[widget.friendId]!.add({
-            'text': messageText,
-            'isMe': senderId == widget.currentUserId,
-            'type': messageType,
-          });
+
+          if (messageType == 'image' || isImageUrl) {
+            // ✅ ถ้าเป็นภาพ ให้เก็บแค่ `imagePath` และไม่แสดง URL
+            messagesMap[widget.friendId]!.add({
+              'imagePath': messageText,
+              'text': null, // ❌ ไม่เก็บ URL เป็นข้อความ
+              'isMe': senderId == widget.currentUserId,
+              'type': 'image',
+            });
+          } else {
+            // ✅ ถ้าเป็นข้อความ ให้เก็บแค่ `text`
+            messagesMap[widget.friendId]!.add({
+              'text': messageText,
+              'imagePath': null,
+              'isMe': senderId == widget.currentUserId,
+              'type': 'text',
+            });
+          }
         });
       }
     }
@@ -244,6 +305,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Widget _buildMessage(Map<String, dynamic> message) {
     if (message['type'] == 'text') {
+      String messageText = message['text'] ?? "";
+
+      if (messageText.trim().isEmpty ||
+          Uri.tryParse(messageText)?.hasAbsolutePath == true) {
+        return SizedBox.shrink(); // ✅ ซ่อนข้อความที่เป็น URL
+      }
+
       return Row(
         mainAxisAlignment:
             message['isMe'] ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -258,31 +326,44 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               borderRadius: BorderRadius.circular(15),
             ),
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 200), // จำกัดความกว้าง
+              constraints: BoxConstraints(maxWidth: 200),
               child: Text(
-                message['text'],
-                softWrap: true, // อนุญาตให้ข้อความเลื่อนไปบรรทัดใหม่
-                overflow: TextOverflow.visible, // แสดงข้อความที่ยาวเกิน
+                messageText, // ✅ แสดงเฉพาะข้อความที่ไม่ใช่ URL
+                softWrap: true,
+                overflow: TextOverflow.visible,
               ),
             ),
           ),
         ],
       );
     } else if (message['type'] == 'image') {
+      String? imageUrl = message['imagePath'];
+
+      if (imageUrl != null && !imageUrl.startsWith('http')) {
+        imageUrl = "http://10.39.5.2:3000$imageUrl";
+      }
+
+      print("🔵 Final Image URL for Display: $imageUrl"); // ✅ Debugging
+
       return Row(
         mainAxisAlignment:
             message['isMe'] ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           Container(
             margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-            child: Image.network(
-              message['imagePath'], // ใช้ URL ของรูปภาพ
-              width: 150,
-              height: 150,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Icon(Icons.broken_image, size: 100, color: Colors.grey);
-              },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10), // ✅ ทำให้ขอบโค้ง
+              child: Image.network(
+                imageUrl ?? "", // ✅ ป้องกัน `null`
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  print("❌ Failed to load image: $imageUrl"); // ✅ Debugging
+                  return Icon(Icons.broken_image,
+                      size: 100, color: Colors.grey);
+                },
+              ),
             ),
           ),
         ],
