@@ -19,12 +19,27 @@ CREATE TABLE friends (
     created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
 );
 
+CREATE OR REPLACE FUNCTION delete_messages_after_unfriend()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM messages 
+    WHERE (sender_id = OLD.sender_id AND receiver_id = OLD.receiver_id) 
+       OR (sender_id = OLD.receiver_id AND receiver_id = OLD.sender_id);
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_delete_messages
+AFTER DELETE ON friends
+FOR EACH ROW
+EXECUTE FUNCTION delete_messages_after_unfriend();
+
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     sender_id INT REFERENCES users(id) ON DELETE CASCADE,
     receiver_id INT REFERENCES users(id) ON DELETE CASCADE,
-    message TEXT,
-    message_type VARCHAR(10) DEFAULT 'text', 
+    message TEXT,  
+    message_type VARCHAR(10) CHECK (message_type IN ('text', 'image')), -- ประเภทของข้อความ
     created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
 );
 
