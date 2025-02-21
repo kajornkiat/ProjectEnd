@@ -76,9 +76,32 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
     }
   }
 
+  Future<void> deleteFriend() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('http://10.39.5.2:3000/api/friends/delete'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "user_id": widget.currentUserId,
+          "friend_id": widget.userId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          friendStatus = 'not_friends'; // เปลี่ยนสถานะให้กลับเป็น "Add Friend"
+        });
+      } else {
+        throw Exception("Failed to delete friend");
+      }
+    } catch (e) {
+      print("Error deleting friend: $e");
+    }
+  }
+
   Widget buildFriendButton() {
     if (friendStatus == 'loading') {
-      return const CircularProgressIndicator(); // โหลดสถานะเพื่อน
+      return const CircularProgressIndicator();
     } else if (friendStatus == 'pending') {
       return ElevatedButton(
         onPressed: null,
@@ -89,7 +112,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 🔹 ปุ่ม "Friend" มีพื้นหลังสีฟ้า
+          // 🔹 ปุ่ม "Friend"
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -99,32 +122,44 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle,
-                    color: Color.fromARGB(255, 14, 230, 72)),
+                const Icon(Icons.check_circle, color: Colors.green),
                 const SizedBox(width: 5),
                 const Text(
                   "Friend",
                   style: TextStyle(
-                      color: Color.fromARGB(255, 0, 0, 0),
-                      fontWeight: FontWeight.bold),
+                      color: Colors.black, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 1), // 🔹 เว้นระยะห่างระหว่างปุ่มและไอคอนแชท
-
-          // 🔹 ปุ่มแชทอยู่นอก Container
-          IconButton(
-            icon:
-                const Icon(Icons.chat, color: Color.fromARGB(255, 24, 24, 24)),
-            onPressed: () {
-              String imageUrl = widget.profileImageUrl ?? '';
-
-              // ตรวจสอบว่า URL มี 'http' หรือไม่
-              if (!imageUrl.startsWith('http')) {
-                imageUrl = 'http://10.39.5.2:3000$imageUrl';
+          // 🔹 ไอคอนจุดไข่ปลา (เมนู)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (String choice) {
+              if (choice == 'delete') {
+                deleteFriend(); // เรียกฟังก์ชันลบเพื่อน
               }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text("Delete Friend"),
+              ),
+              const PopupMenuItem(
+                value: 'cancel',
+                child: Text("Cancel"),
+              ),
+            ],
+          ),
+
+          // 🔹 ปุ่มแชท
+          IconButton(
+            icon: const Icon(Icons.chat, color: Colors.black),
+            onPressed: () {
+              String imageUrl = widget.profileImageUrl.isNotEmpty
+                  ? widget.profileImageUrl
+                  : 'http://10.39.5.2:3000/default_profile.png';
 
               Navigator.push(
                 context,
@@ -133,7 +168,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                     currentUserId: widget.currentUserId,
                     friendId: widget.userId,
                     name: widget.fullname,
-                    avatar: imageUrl, // ใช้ URL ที่ตรวจสอบแล้ว
+                    avatar: imageUrl,
                   ),
                 ),
               );
@@ -148,18 +183,13 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
       return ElevatedButton(
         onPressed: sendFriendRequest,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue, // 🔹 เปลี่ยนเป็นสีน้ำเงิน
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20), // 🔹 ทำให้โค้งมน
-          ),
+          backgroundColor: Colors.blue,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
-        child: const Text(
-          "Add Friend",
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold), // 🔹 เปลี่ยนข้อความเป็นสีขาว
-        ),
+        child: const Text("Add Friend",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
     }
   }

@@ -43,8 +43,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
       return;
     }
 
-    final url = Uri.parse(
-        "http://10.39.5.2:3000/api/users/search?fullname=$query");
+    final url =
+        Uri.parse("http://10.39.5.2:3000/api/users/search?fullname=$query");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -95,8 +95,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
       Uri.parse('http://10.39.5.2:3000/api/friends/delete'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
-        "sender_id": senderId,
-        "receiver_id": widget.currentUserId,
+        "user_id": senderId, // เปลี่ยน sender_id เป็น user_id
+        "friend_id": widget.currentUserId, // เปลี่ยน receiver_id เป็น friend_id
       }),
     );
 

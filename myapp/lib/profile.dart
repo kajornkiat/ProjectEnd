@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
+import 'friendprofile.dart';
 
 class ProfilePage extends StatefulWidget {
   final int userId;
@@ -19,11 +20,13 @@ class _ProfilePageState extends State<ProfilePage> {
   String backgroundImageUrl = ''; // URL ของรูปพื้นหลัง
   String userName = ''; // ชื่อของผู้ใช้
   bool _isLoading = false; // สถานะการโหลด
+  List<Map<String, dynamic>> friends = []; // ✅ เพิ่มตัวแปรเก็บรายชื่อเพื่อน
 
   @override
   void initState() {
     super.initState();
     fetchImages(); // เรียกใช้ฟังก์ชันดึงข้อมูลเมื่อเริ่มต้น
+    fetchFriends(); // ดึงรายชื่อเพื่อน
   }
 
   // ฟังก์ชันดึงข้อมูลจาก API
@@ -48,8 +51,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final data = jsonDecode(response.body);
       setState(() {
         profileImageUrl = 'http://10.39.5.2:3000${data['profile_image']}';
-        backgroundImageUrl =
-            'http://10.39.5.2:3000${data['background_image']}';
+        backgroundImageUrl = 'http://10.39.5.2:3000${data['background_image']}';
         userName = data['fullname'] ?? '';
       });
     } else {
@@ -273,6 +275,89 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  //ฟังก์ขันดึงรายชื่อเพื่อน
+  Future<void> fetchFriends() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('http://10.39.5.2:3000/friends/${widget.userId}'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      setState(() {
+        friends = data
+            .map((friend) => {
+                  'id': friend['id'],
+                  'fullname': friend['fullname'],
+                  'profileImage':
+                      'http://10.39.5.2:3000${friend['profile_image']}',
+                })
+            .toList();
+      });
+    } else {
+      print('Failed to load friends');
+    }
+  }
+
+  Widget buildFriendsList() {
+    return SizedBox(
+      height: 100, // กำหนดความสูงของ list เพื่อน
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal, // เลื่อนแนวนอน
+        itemCount: friends.length,
+        itemBuilder: (context, index) {
+          final friend = friends[index];
+
+          return GestureDetector(
+            onTap: () {
+              // 👉 ไปที่หน้า friendprofile.dart และส่ง userId ของเพื่อน
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FriendProfilePage(
+                    userId: friend['id'],
+                    currentUserId: widget
+                        .userId, // ใช้ userId ของโปรไฟล์ปัจจุบันเป็น currentUserId
+                    fullname: friend['fullname'],
+                    profileImageUrl: friend['profileImage'],
+                    backgroundImageUrl: '', // หรือค่าอื่นที่เหมาะสม
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 35,
+                    backgroundImage: NetworkImage(friend['profileImage']),
+                  ),
+                  const SizedBox(height: 5),
+                  SizedBox(
+                    width: 70,
+                    child: Text(
+                      friend['fullname'],
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -308,7 +393,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 40,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.logout, color: Color.fromARGB(255, 1, 191, 255)),
+                    icon: const Icon(Icons.logout,
+                        color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       showLogoutDialog(context);
                     },
@@ -319,7 +405,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 70,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.settings, color: Color.fromARGB(255, 1, 191, 255)),
+                    icon: const Icon(Icons.settings,
+                        color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       //Action
                     },
@@ -330,7 +417,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   top: 100,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.edit, color: Color.fromARGB(255, 1, 191, 255)),
+                    icon: const Icon(Icons.edit,
+                        color: Color.fromARGB(255, 1, 191, 255)),
                     onPressed: () {
                       showEditDialog(context);
                     },
@@ -346,6 +434,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20), // ✅ เพิ่มระยะห่างก่อนแสดงเพื่อน
+            buildFriendsList(), // ✅ เพิ่มส่วนแสดงรายชื่อเพื่อนที่นี่
           ],
         ),
       ),

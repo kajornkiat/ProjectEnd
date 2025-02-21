@@ -125,6 +125,26 @@ app.get('/profile/:id', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/friends/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.fullname, u.profile_image 
+             FROM friends f
+             JOIN users u ON 
+                 (f.sender_id = u.id AND f.receiver_id = $1) OR
+                 (f.receiver_id = u.id AND f.sender_id = $1)
+             WHERE f.status = 'accepted'`,
+            [id]
+        );
+
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Database error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -892,21 +912,22 @@ app.get('/api/friends/requests', async (req, res) => {
     }
 });
 
-// API ลบคำขอเป็นเพื่อน
+// API ลบคำขอเป็นเพื่อนและลบเพื่อน
 app.delete('/api/friends/delete', async (req, res) => {
-    const { sender_id, receiver_id } = req.body;
+    const { user_id, friend_id } = req.body;
 
     try {
         await pool.query(
-            'DELETE FROM friends WHERE sender_id = $1 AND receiver_id = $2',
-            [sender_id, receiver_id]
+            'DELETE FROM friends WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
+            [user_id, friend_id]
         );
-        res.json({ message: 'Friend request deleted' });
+        res.json({ message: 'Friend deleted successfully' });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // API ดึงจำนวนคำขอเป็นเพื่อนที่ pending
 app.get('/api/friends/pending/count', async (req, res) => {

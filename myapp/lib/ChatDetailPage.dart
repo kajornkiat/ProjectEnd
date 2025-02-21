@@ -399,7 +399,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           IconButton(
             icon: Icon(Icons.phone),
             onPressed: () {
-              // ฟังก์ชันโทร
             },
           ),
           IconButton(
