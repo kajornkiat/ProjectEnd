@@ -129,7 +129,7 @@ app.get('/friends/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query(
-            `SELECT u.id, u.fullname, u.profile_image 
+            `SELECT u.id, u.fullname, u.profile_image, u.background_image
              FROM friends f
              JOIN users u ON 
                  (f.sender_id = u.id AND f.receiver_id = $1) OR

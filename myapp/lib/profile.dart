@@ -296,6 +296,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   'fullname': friend['fullname'],
                   'profileImage':
                       'http://10.39.5.2:3000${friend['profile_image']}',
+                  'backgroundImage':
+                      'http://10.39.5.2:3000${friend['background_image']}',
                 })
             .toList();
       });
@@ -325,7 +327,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         .userId, // ใช้ userId ของโปรไฟล์ปัจจุบันเป็น currentUserId
                     fullname: friend['fullname'],
                     profileImageUrl: friend['profileImage'],
-                    backgroundImageUrl: '', // หรือค่าอื่นที่เหมาะสม
+                    backgroundImageUrl: friend['backgroundImage'], // หรือค่าอื่นที่เหมาะสม
                   ),
                 ),
               );
