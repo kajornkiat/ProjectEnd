@@ -85,6 +85,18 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/signup', async (req, res) => {
     const { username, password, email, fullname, gender, birthdate } = req.body;
 
+    // ตรวจสอบ username และ password ด้วย regex
+    const usernameRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{1,20}$/;
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{8,10}$/;
+
+    if (!usernameRegex.test(username)) {
+        return res.status(400).json({ message: 'Username must be 1-20 characters long and contain only letters or numbers.' });
+    }
+
+    if (!passwordRegex.test(password)) {
+        return res.status(400).json({ message: 'Password must be 8-10 characters long and contain only letters or numbers.' });
+    }
+
     try {
         // ตรวจสอบว่า username หรือ email ซ้ำหรือไม่
         const checkUser = await pool.query(
@@ -98,16 +110,18 @@ app.post('/api/signup', async (req, res) => {
 
         const hashedPassword = bcrypt.hashSync(password, 10);
 
-        // เพิ่มผู้ใช้ใหม่
+        // เพิ่มผู้ใช้ใหม่ลงฐานข้อมูล
         const result = await pool.query(
             'INSERT INTO users (username, password, email, fullname, gender, birthdate) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [username, hashedPassword, email, fullname, gender, birthdate]
         );
+
         res.json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // Profile Endpoint
 app.get('/profile/:id', authenticateToken, async (req, res) => {

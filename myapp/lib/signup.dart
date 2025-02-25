@@ -19,67 +19,68 @@ class _SignUpPageState extends State<SignUpPage> {
   String? selectedMonth;
   String? selectedYear;
 
-  final RegExp emailRegExp = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-  final RegExp usernameRegExp = RegExp(r'^[a-zA-Z0-9]{1,20}$');
-  final RegExp passwordRegExp = RegExp(r'^[a-zA-Z0-9]{8,10}$');
+  final RegExp emailRegExp =
+      RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+  final RegExp usernameRegExp = RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{1,20}$');
+  final RegExp passwordRegExp = RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]{8,10}$');
 
   Future<void> submitData(BuildContext context) async {
-    if (!emailRegExp.hasMatch(emailController.text)) {
+    final String username = usernameController.text.trim();
+    final String password = passController.text.trim();
+
+    //final RegExp usernameRegExp = RegExp(r'^[a-zA-Z0-9]{1,20}$');
+    //final RegExp passwordRegExp = RegExp(r'^[a-zA-Z0-9]{8,10}$');
+
+    if (!usernameRegExp.hasMatch(username)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('รูปแบบอีเมลไม่ถูกต้อง')),
-      );
-      return;
-    }
-    if (!usernameRegExp.hasMatch(usernameController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ชื่อผู้ใช้ต้องมีความยาว 1-20 ตัวอักษร และต้องเป็นตัวอักษรหรือตัวเลขเท่านั้น')),
-      );
-      return;
-    }
-    if (!passwordRegExp.hasMatch(passController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('รหัสผ่านต้องมีความยาว 8-10 ตัวอักษร และต้องเป็นตัวอักษรหรือตัวเลขเท่านั้น')),
-      );
-      return;
-    }
-    if (selectedDay == null || selectedMonth == null || selectedYear == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('กรุณาเลือกวันเกิดให้ครบถ้วน')),
+        SnackBar(
+            content: Text(
+                'Username must be 1-20 characters long and contain only letters or numbers.')),
       );
       return;
     }
 
-    final response = await http.post(
-      Uri.parse('http://10.39.5.31:3000/api/signup'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'username': usernameController.text,
-        'password': passController.text,
-        'email': emailController.text,
-        'fullname': fullNameController.text,
-        'gender': selectedGender ?? '',
-        'birthdate': '$selectedYear-$selectedMonth-$selectedDay',
-      }),
-    );
+    if (!passwordRegExp.hasMatch(password)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Password must be 8-10 characters long and contain only letters or numbers.')),
+      );
+      return;
+    }
 
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('สมัครสมาชิกเรียบร้อย')),
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.39.5.31:3000/api/signup'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+          'email': emailController.text.trim(),
+          'fullname': fullNameController.text.trim(),
+          'gender': selectedGender ?? '',
+          'birthdate': '$selectedYear-$selectedMonth-$selectedDay',
+        }),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginPage()),
-      );
-    } else if (response.statusCode == 400) {
-      final errorResponse = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration successful.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginPage()),
+        );
+      } else {
+        final errorResponse = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(errorResponse['message'] ?? 'Unable to register.')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorResponse['message'])),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่สามารถสมัครสมาชิกได้')),
+        SnackBar(content: Text('An error occurred: $e')),
       );
     }
   }
