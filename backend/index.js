@@ -531,7 +531,7 @@ app.post('/api/posts', authenticateToken, postupload.single('image'), async (req
 // GET: ดึงข้อมูลทั้งหมดจากตาราง post
 app.get('/api/posts', async (req, res) => {
     try {
-        const { province } = req.query;
+        const { province, user_id } = req.query; // เพิ่ม user_id ใน query parameter
         let query = `
       SELECT 
           post.post_id, 
@@ -549,9 +549,23 @@ app.get('/api/posts', async (req, res) => {
     `;
 
         let values = [];
+        let conditions = [];
+
+        // กรองด้วย province (ถ้ามี)
         if (province) {
-            query += ` WHERE LOWER(post.province) LIKE $1`;
+            conditions.push(`LOWER(post.province) LIKE $${values.length + 1}`);
             values.push(`%${province.toLowerCase()}%`);
+        }
+
+        // กรองด้วย user_id (ถ้ามี)
+        if (user_id) {
+            conditions.push(`post.user_id = $${values.length + 1}`);
+            values.push(user_id);
+        }
+
+        // เพิ่มเงื่อนไข WHERE ถ้ามีเงื่อนไข
+        if (conditions.length > 0) {
+            query += ` WHERE ${conditions.join(' AND ')}`;
         }
 
         query += ` GROUP BY post.post_id, users.id ORDER BY post.date DESC`;

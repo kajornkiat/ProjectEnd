@@ -36,7 +36,7 @@ class _SelectPageState extends State<SelectPage> {
   }
 
   Future<void> fetchPlaces() async {
-    String baseUrl = 'http://10.39.5.2:3000/api';
+    String baseUrl = 'http://10.39.5.31:3000/api';
     String url = '$baseUrl/${widget.category}';
     try {
       final response = await http.get(Uri.parse(url));
@@ -126,7 +126,7 @@ class _SelectPageState extends State<SelectPage> {
                   final place = filteredPlaces[index];
                   final imageUrl =
                       place['image'] != null && place['image'].isNotEmpty
-                          ? 'http://10.39.5.2:3000${place['image']}'
+                          ? 'http://10.39.5.31:3000${place['image']}'
                           : 'https://via.placeholder.com/150';
 
                   // ✅ แยกตัวแปรออกมาก่อน

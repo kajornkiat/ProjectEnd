@@ -55,7 +55,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> fetchFriendRequestsCount() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://10.39.5.2:3000/api/friends/requests?receiver_id=${widget.userId}'));
+          'http://10.39.5.31:3000/api/friends/requests?receiver_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         List<dynamic> requests = json.decode(response.body);
@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.39.5.2:3000/profile/${widget.userId}'),
+        Uri.parse('http://10.39.5.31:3000/profile/${widget.userId}'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -91,7 +91,7 @@ class _HomePageState extends State<HomePage> {
           userData = data;
           profileImageUrl =
               data['profile_image'] != null && data['profile_image'].isNotEmpty
-                  ? 'http://10.39.5.2:3000${data['profile_image']}'
+                  ? 'http://10.39.5.31:3000${data['profile_image']}'
                   : 'assets/images/9669.jpg';
         });
       } else {
