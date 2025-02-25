@@ -742,7 +742,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 Image.network('http://10.39.5.31:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
-                child: Text(post['description']),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post['province'] ?? 'Unknown Province', // ✅ แสดง province
+                      style: TextStyle(
+                        fontSize: 16, // ✅ เท่ากับ description
+                        fontWeight: FontWeight.bold, // ✅ ตัวหนา
+                        color: Colors.blue, // ✅ สีฟ้า
+                      ),
+                    ),
+                    SizedBox(height: 5), // ✅ เว้นระยะห่าง
+                    Text(
+                      post['description'] ?? '',
+                      style: TextStyle(fontSize: 16), // ✅ เท่ากับ province
+                    ),
+                  ],
+                ),
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8.0),
