@@ -4,6 +4,8 @@ import 'dart:convert';
 
 import 'friendprofile.dart'; // ลิ้งค์ไปหน้าข้อมูลเพื่อน
 
+
+
 class AddFriendsPage extends StatefulWidget {
   final int currentUserId; // รับ userId ของผู้ใช้ที่ล็อกอิน
   final Function(int) onRequestCountChange; // 🔹 Callback function
@@ -35,11 +37,20 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
     });
   }
 
+  @override
+  void dispose() {
+    searchController.removeListener(() {});
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> searchUsers(String query) async {
     if (query.isEmpty) {
-      setState(() {
-        searchResults = [];
-      });
+      if (mounted) {
+        setState(() {
+          searchResults = [];
+        });
+      }
       return;
     }
 
@@ -49,11 +60,13 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
     if (response.statusCode == 200) {
       final List<dynamic> results = json.decode(response.body);
-      setState(() {
-        searchResults = results
-            .where((user) => user['id'] != widget.currentUserId)
-            .toList();
-      });
+      if (mounted) {
+        setState(() {
+          searchResults = results
+              .where((user) => user['id'] != widget.currentUserId)
+              .toList();
+        });
+      }
     } else {
       print("Error fetching data");
     }
@@ -65,11 +78,13 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
     if (response.statusCode == 200) {
       List<dynamic> requests = json.decode(response.body);
-      setState(() {
-        friendRequests = requests;
-      });
+      if (mounted) {
+        setState(() {
+          friendRequests = requests;
+        });
 
-      widget.onRequestCountChange(requests.length); // 🔹 อัปเดตไปที่ home.dart
+        widget.onRequestCountChange(requests.length);
+      }
     }
   }
 
