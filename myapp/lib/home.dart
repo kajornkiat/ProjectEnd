@@ -23,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   String profileImageUrl = 'assets/images/9669.jpg';
   Map<String, dynamic>? userData;
   int friendRequestsCount = 0; // จำนวนคำขอเป็นเพื่อน
+  final PageController _pageController = PageController();
 
   List<Widget> get _pages {
     if (userData == null) {
@@ -55,7 +56,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> fetchFriendRequestsCount() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://10.39.5.31:3000/api/friends/requests?receiver_id=${widget.userId}'));
+          'http://10.39.5.8:3000/api/friends/requests?receiver_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         List<dynamic> requests = json.decode(response.body);
@@ -79,7 +80,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.39.5.31:3000/profile/${widget.userId}'),
+        Uri.parse('http://10.39.5.8:3000/profile/${widget.userId}'),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -91,7 +92,7 @@ class _HomePageState extends State<HomePage> {
           userData = data;
           profileImageUrl =
               data['profile_image'] != null && data['profile_image'].isNotEmpty
-                  ? 'http://10.39.5.31:3000${data['profile_image']}'
+                  ? 'http://10.39.5.8:3000${data['profile_image']}'
                   : 'assets/images/9669.jpg';
         });
       } else {
@@ -115,8 +116,17 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          IndexedStack(
-            index: _currentIndex,
+          PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+              if (index == 3) {
+                // เมื่อสลับไปหน้า ProfilePage
+                _pages[3] = ProfilePage(userId: widget.userId);
+              }
+            },
             children: _pages,
           ),
         ],
@@ -126,6 +136,7 @@ class _HomePageState extends State<HomePage> {
         onTap: (index) {
           setState(() {
             _currentIndex = index; // เปลี่ยนหน้าเหมือนไอคอนอื่น
+            _pageController.jumpToPage(index);
           });
         },
         items: [

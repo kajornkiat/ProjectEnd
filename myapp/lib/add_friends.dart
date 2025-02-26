@@ -44,7 +44,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
     }
 
     final url =
-        Uri.parse("http://10.39.5.31:3000/api/users/search?fullname=$query");
+        Uri.parse("http://10.39.5.8:3000/api/users/search?fullname=$query");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -61,7 +61,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
   Future<void> fetchFriendRequests() async {
     final response = await http.get(Uri.parse(
-        'http://10.39.5.31:3000/api/friends/requests?receiver_id=${widget.currentUserId}'));
+        'http://10.39.5.8:3000/api/friends/requests?receiver_id=${widget.currentUserId}'));
 
     if (response.statusCode == 200) {
       List<dynamic> requests = json.decode(response.body);
@@ -75,7 +75,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
   Future<void> acceptFriendRequest(int senderId) async {
     final response = await http.put(
-      Uri.parse('http://10.39.5.31:3000/api/friends/accept'),
+      Uri.parse('http://10.39.5.8:3000/api/friends/accept'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "sender_id": senderId,
@@ -92,7 +92,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
 
   Future<void> deleteFriendRequest(int senderId) async {
     final response = await http.delete(
-      Uri.parse('http://10.39.5.31:3000/api/friends/delete'),
+      Uri.parse('http://10.39.5.8:3000/api/friends/delete'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "user_id": senderId, // เปลี่ยน sender_id เป็น user_id
@@ -197,9 +197,9 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                     currentUserId: widget.currentUserId,
                                     fullname: friend['fullname'],
                                     profileImageUrl:
-                                        'http://10.39.5.31:3000${friend['profile_image']}',
+                                        'http://10.39.5.8:3000${friend['profile_image']}',
                                     backgroundImageUrl:
-                                        'http://10.39.5.31:3000${friend['background_image'] ?? ''}',
+                                        'http://10.39.5.8:3000${friend['background_image'] ?? ''}',
                                   ),
                                 ),
                               );
@@ -212,7 +212,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                   backgroundImage: friend['profile_image'] !=
                                           null
                                       ? NetworkImage(
-                                          'http://10.39.5.31:3000${friend['profile_image']}',
+                                          'http://10.39.5.8:3000${friend['profile_image']}',
                                         )
                                       : const AssetImage(
                                               'assets/images/default_profile.png')
@@ -273,7 +273,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                             leading: CircleAvatar(
                               backgroundImage: user['profile_image'] != null
                                   ? NetworkImage(
-                                      'http://10.39.5.31:3000${user['profile_image']}',
+                                      'http://10.39.5.8:3000${user['profile_image']}',
                                     )
                                   : const AssetImage(
                                           'assets/images/default_profile.png')
@@ -293,9 +293,9 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                     currentUserId: widget.currentUserId,
                                     fullname: user['fullname'],
                                     profileImageUrl:
-                                        'http://10.39.5.31:3000${user['profile_image']}',
+                                        'http://10.39.5.8:3000${user['profile_image']}',
                                     backgroundImageUrl:
-                                        'http://10.39.5.31:3000${user['background_image'] ?? ''}',
+                                        'http://10.39.5.8:3000${user['background_image'] ?? ''}',
                                   ),
                                 ),
                               );

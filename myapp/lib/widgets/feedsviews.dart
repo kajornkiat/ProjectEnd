@@ -61,7 +61,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
 
   @override
   void initSocket() {
-    socket = IO.io('http://10.39.5.31:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.8:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -133,7 +133,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
   }
 
   Future<void> fetchPosts({String? searchQuery}) async {
-    String url = 'http://10.39.5.31:3000/api/posts';
+    String url = 'http://10.39.5.8:3000/api/posts';
     String apiUrl = searchQuery != null && searchQuery.isNotEmpty
         ? '$url?province=$searchQuery'
         : url;
@@ -185,7 +185,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.31:3000/api/posts'),
+      Uri.parse('http://10.39.5.8:3000/api/posts'),
     );
 
     request.headers['Authorization'] = 'Bearer $token';
@@ -232,7 +232,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
 
     try {
       final response = await http.delete(
-        Uri.parse('http://10.39.5.31:3000/api/posts/$postId'),
+        Uri.parse('http://10.39.5.8:3000/api/posts/$postId'),
         headers: {"Authorization": "Bearer $token"},
       );
 
@@ -337,7 +337,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     if (postController.text.isEmpty) return;
 
     final response = await http.post(
-      Uri.parse('http://10.39.5.31:3000/api/posts'),
+      Uri.parse('http://10.39.5.8:3000/api/posts'),
       headers: {"Content-Type": "application/json"},
       body: json.encode({
         "user_id": widget.userData["id"],
@@ -365,7 +365,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
   Future<void> fetchComments(int postId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.39.5.31:3000/api/comments/$postId'),
+        Uri.parse('http://10.39.5.8:3000/api/comments/$postId'),
       );
 
       if (response.statusCode == 200) {
@@ -393,7 +393,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     String? token = prefs.getString('token');
 
     final response = await http.post(
-      Uri.parse("http://10.39.5.31:3000/api/comments"),
+      Uri.parse("http://10.39.5.8:3000/api/comments"),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -424,7 +424,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     String? token = prefs.getString('token');
 
     final response = await http.delete(
-      Uri.parse("http://10.39.5.31:3000/api/comments/$commentId"),
+      Uri.parse("http://10.39.5.8:3000/api/comments/$commentId"),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -468,7 +468,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundImage: NetworkImage(
-                                'http://10.39.5.31:3000${comment['profile_image']}',
+                                'http://10.39.5.8:3000${comment['profile_image']}',
                               ),
                             ),
                             title: Text(comment['fullname']),
@@ -593,7 +593,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                     CircleAvatar(
                       backgroundImage: widget.userData['profile_image'] != null
                           ? NetworkImage(
-                              'http://10.39.5.31:3000${widget.userData['profile_image']}')
+                              'http://10.39.5.8:3000${widget.userData['profile_image']}')
                           : AssetImage('assets/images/default_profile.png')
                               as ImageProvider,
                     ),
@@ -637,7 +637,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                               leading: CircleAvatar(
                                 backgroundImage: post['profile_image'] != null
                                     ? NetworkImage(
-                                        'http://10.39.5.31:3000${post['profile_image']}')
+                                        'http://10.39.5.8:3000${post['profile_image']}')
                                     : AssetImage(
                                             'assets/images/default_profile.png')
                                         as ImageProvider,
@@ -669,7 +669,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                             ),
                             if (post['image'] != null)
                               Image.network(
-                                  'http://10.39.5.31:3000/posts/${post['image']}'),
+                                  'http://10.39.5.8:3000/posts/${post['image']}'),
                             Padding(
                               padding: EdgeInsets.all(8.0),
                               child: Column(
@@ -710,7 +710,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                                                   post['profile_image']
                                                       .isNotEmpty
                                               ? NetworkImage(
-                                                  'http://10.39.5.31:3000${post['profile_image']}')
+                                                  'http://10.39.5.8:3000${post['profile_image']}')
                                               : AssetImage(
                                                       'assets/images/default_profile.png')
                                                   as ImageProvider,

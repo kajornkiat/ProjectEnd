@@ -37,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.39.5.31:3000/api/login'),
+        Uri.parse('http://10.39.5.8:3000/api/login'),
         headers: {
           'Content-Type': 'application/json', // กำหนด Content-Type เป็น JSON
         },

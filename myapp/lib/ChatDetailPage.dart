@@ -40,7 +40,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   void connectSocket() {
-    socket = IO.io('http://10.39.5.31:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.8:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true, // เปิดให้มีการ reconnect
@@ -81,7 +81,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             if (messageType == 'image') {
               String imageUrl = messageText.startsWith('http')
                   ? messageText
-                  : "http://10.39.5.31:3000$messageText";
+                  : "http://10.39.5.8:3000$messageText";
 
               // ✅ ป้องกันรูปซ้ำ (เช็คจาก imagePath และ senderId)
               bool isDuplicate = messagesMap[chatPartnerId]!.any((msg) =>
@@ -153,7 +153,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> fetchChatHistory() async {
     final url = Uri.parse(
-        'http://10.39.5.31:3000/api/chat/messages?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
+        'http://10.39.5.8:3000/api/chat/messages?sender_id=${widget.currentUserId}&receiver_id=${widget.friendId}');
 
     try {
       final response = await http.get(url);
@@ -172,7 +172,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               if (isImage) {
                 imageUrl = chat['message'].startsWith('http')
                     ? chat['message'] // URL สมบูรณ์แล้ว
-                    : "http://10.39.5.31:3000${chat['message']}"; // เพิ่ม domain
+                    : "http://10.39.5.8:3000${chat['message']}"; // เพิ่ม domain
               }
 
               print("🔵 Processed Image URL: $imageUrl"); // ✅ Debug
@@ -231,7 +231,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Future<String?> uploadImageToServer(XFile image) async {
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.31:3000/api/messages_image'),
+      Uri.parse('http://10.39.5.8:3000/api/messages_image'),
     );
 
     request.files.add(await http.MultipartFile.fromPath('image', image.path));
@@ -340,7 +340,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       String? imageUrl = message['imagePath'];
 
       if (imageUrl != null && !imageUrl.startsWith('http')) {
-        imageUrl = "http://10.39.5.31:3000$imageUrl";
+        imageUrl = "http://10.39.5.8:3000$imageUrl";
       }
 
       print("🔵 Final Image URL for Display: $imageUrl"); // ✅ Debugging

@@ -45,7 +45,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void initSocket() {
-    socket = IO.io('http://10.39.5.31:3000', <String, dynamic>{
+    socket = IO.io('http://10.39.5.8:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -104,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final token = prefs.getString('token');
 
     final response = await http.get(
-      Uri.parse('http://10.39.5.31:3000/profile/${widget.userId}'),
+      Uri.parse('http://10.39.5.8:3000/profile/${widget.userId}'),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -115,9 +115,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        profileImageUrl = 'http://10.39.5.31:3000${data['profile_image']}';
+        profileImageUrl = 'http://10.39.5.8:3000${data['profile_image']}';
         backgroundImageUrl =
-            'http://10.39.5.31:3000${data['background_image']}';
+            'http://10.39.5.8:3000${data['background_image']}';
         userName = data['fullname'] ?? '';
       });
     } else {
@@ -137,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.31:3000/profile'),
+      Uri.parse('http://10.39.5.8:3000/profile'),
     );
     // ใช้ widget.userId แทน '1'
     request.fields['id'] = widget.userId.toString();
@@ -175,7 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
     // สร้าง request
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.39.5.31:3000/profile'), // ใช้ URL ที่ถูกต้อง
+      Uri.parse('http://10.39.5.8:3000/profile'), // ใช้ URL ที่ถูกต้อง
     );
 
     // ส่ง ID
@@ -347,7 +347,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final token = prefs.getString('token');
 
     final response = await http.get(
-      Uri.parse('http://10.39.5.31:3000/friends/${widget.userId}'),
+      Uri.parse('http://10.39.5.8:3000/friends/${widget.userId}'),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -361,9 +361,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   'id': friend['id'],
                   'fullname': friend['fullname'],
                   'profileImage':
-                      'http://10.39.5.31:3000${friend['profile_image']}',
+                      'http://10.39.5.8:3000${friend['profile_image']}',
                   'backgroundImage':
-                      'http://10.39.5.31:3000${friend['background_image']}',
+                      'http://10.39.5.8:3000${friend['background_image']}',
                 })
             .toList();
       });
@@ -461,7 +461,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final response = await http.get(
         Uri.parse(
-            'http://10.39.5.31:3000/api/posts?user_id=${userId.toString()}'),
+            'http://10.39.5.8:3000/api/posts?user_id=${userId.toString()}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -494,7 +494,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     try {
       final response = await http.delete(
-        Uri.parse('http://10.39.5.31:3000/api/posts/$postId'),
+        Uri.parse('http://10.39.5.8:3000/api/posts/$postId'),
         headers: {"Authorization": "Bearer $token"},
       );
 
@@ -520,7 +520,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> fetchComments(int postId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.39.5.31:3000/api/comments/$postId'),
+        Uri.parse('http://10.39.5.8:3000/api/comments/$postId'),
       );
 
       if (response.statusCode == 200) {
@@ -549,7 +549,7 @@ class _ProfilePageState extends State<ProfilePage> {
     String? token = prefs.getString('token');
 
     final response = await http.post(
-      Uri.parse("http://10.39.5.31:3000/api/comments"),
+      Uri.parse("http://10.39.5.8:3000/api/comments"),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -581,7 +581,7 @@ class _ProfilePageState extends State<ProfilePage> {
     String? token = prefs.getString('token');
 
     final response = await http.delete(
-      Uri.parse("http://10.39.5.31:3000/api/comments/$commentId"),
+      Uri.parse("http://10.39.5.8:3000/api/comments/$commentId"),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -625,7 +625,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundImage: NetworkImage(
-                                'http://10.39.5.31:3000${comment['profile_image']}',
+                                'http://10.39.5.8:3000${comment['profile_image']}',
                               ),
                             ),
                             title: Text(comment['fullname']),
@@ -711,7 +711,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 leading: CircleAvatar(
                   backgroundImage: post['profile_image'] != null
                       ? NetworkImage(
-                          'http://10.39.5.31:3000${post['profile_image']}')
+                          'http://10.39.5.8:3000${post['profile_image']}')
                       : AssetImage('assets/images/default_profile.png')
                           as ImageProvider,
                 ),
@@ -739,7 +739,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     : null, // 🔹 ซ่อนปุ่ม
               ),
               if (post['image'] != null)
-                Image.network('http://10.39.5.31:3000/posts/${post['image']}'),
+                Image.network('http://10.39.5.8:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Column(
@@ -770,7 +770,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       backgroundImage: post['profile_image'] != null &&
                               post['profile_image'].isNotEmpty
                           ? NetworkImage(
-                              'http://10.39.5.31:3000${post['profile_image']}')
+                              'http://10.39.5.8:3000${post['profile_image']}')
                           : AssetImage('assets/images/default_profile.png')
                               as ImageProvider,
                       radius: 15,

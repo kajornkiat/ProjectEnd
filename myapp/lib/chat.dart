@@ -30,7 +30,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void setupSocket() {
-    socket = io.io('http://10.39.5.31:3000', <String, dynamic>{
+    socket = io.io('http://10.39.5.8:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -98,7 +98,7 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     final url =
-        'http://10.39.5.31:3000/api/friends/search?userId=${widget.currentUserId}&query=$query';
+        'http://10.39.5.8:3000/api/friends/search?userId=${widget.currentUserId}&query=$query';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -123,7 +123,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> fetchChatHistory() async {
     setState(() => isLoading = true);
     final url =
-        'http://10.39.5.31:3000/api/chat/history?userId=${widget.currentUserId}';
+        'http://10.39.5.8:3000/api/chat/history?userId=${widget.currentUserId}';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -231,7 +231,7 @@ class _ChatPageState extends State<ChatPage> {
                             String imageUrl = user['profile_image'] ?? '';
                             if (imageUrl.isNotEmpty &&
                                 !imageUrl.startsWith('http')) {
-                              imageUrl = 'http://10.39.5.31:3000$imageUrl';
+                              imageUrl = 'http://10.39.5.8:3000$imageUrl';
                             }
 
                             return Container(
