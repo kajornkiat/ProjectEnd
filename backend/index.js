@@ -60,15 +60,15 @@ const authenticateToken = (req, res, next) => {
 // Login Endpoint
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    const query = 'SELECT id, password FROM users WHERE username = $1';
+    const query = 'SELECT id, password, status FROM users WHERE username = $1';
     try {
         const result = await pool.query(query, [username]);
         if (result.rows.length > 0) {
             const user = result.rows[0];
             const validPassword = await bcrypt.compare(password, user.password);
             if (validPassword) {
-                const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: '1h' });
-                res.json({ id: user.id, token });
+                const token = jwt.sign({ id: user.id, status: user.status }, SECRET_KEY, { expiresIn: '1h' });
+                res.json({ id: user.id, token, status: user.status });
             } else {
                 res.status(401).json({ error: 'Invalid username or password' });
             }
@@ -80,6 +80,8 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+
 
 // Signup Endpoint
 app.post('/api/signup', async (req, res) => {
@@ -109,11 +111,12 @@ app.post('/api/signup', async (req, res) => {
         }
 
         const hashedPassword = bcrypt.hashSync(password, 10);
+        const defaultStatus = 'user';
 
         // เพิ่มผู้ใช้ใหม่ลงฐานข้อมูล
         const result = await pool.query(
-            'INSERT INTO users (username, password, email, fullname, gender, birthdate) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [username, hashedPassword, email, fullname, gender, birthdate]
+            'INSERT INTO users (username, password, email, fullname, gender, birthdate, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [username, hashedPassword, email, fullname, gender, birthdate, defaultStatus]
         );
 
         res.json(result.rows[0]);
@@ -121,6 +124,35 @@ app.post('/api/signup', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Update User Status Endpoint (เฉพาะแอดมินเท่านั้น)
+app.put('/api/update-status', async (req, res) => {
+    const { userId, newStatus } = req.body;
+
+    // ตรวจสอบว่า status ที่กำหนดมีค่าเป็น admin หรือ user เท่านั้น
+    const allowedStatuses = ['admin', 'user'];
+    if (!allowedStatuses.includes(newStatus)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    try {
+        // อัปเดตค่า status ของผู้ใช้
+        const result = await pool.query(
+            'UPDATE users SET status = $1 WHERE id = $2 RETURNING *',
+            [newStatus, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'Status updated successfully', user: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 
 
 // Profile Endpoint
@@ -211,28 +243,28 @@ app.post('/profile', upload.fields([{ name: 'profile_image' }, { name: 'backgrou
 const foodStorage = multer.diskStorage({
     destination: path.join(__dirname, 'foodimage'), // Save files to foodimage folder
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1000) + path.extname(file.originalname));
     },
 });
 
 const foodUpload = multer({ storage: foodStorage });
 
-app.post('/api/food', foodUpload.single('image'), async (req, res) => {
+// ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุด 5 รูป
+app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
     const { province, name, description, latitude, longitude } = req.body;
-    console.log('Request body:', req.body); // ดูข้อมูล request ที่ส่งมา
-    console.log('Request file:', req.file); // ตรวจสอบไฟล์
 
     if (!province || !name || !latitude || !longitude) {
         return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
     }
 
-    const imagePath = req.file ? `/foodimage/${req.file.filename}` : null;
+    // ดึง path ของรูปทั้งหมดที่อัปโหลด
+    const imagePaths = req.files.map(file => `/foodimage/${file.filename}`);
 
     try {
         const result = await pool.query(
-            `INSERT INTO food (province, name, image, description, latitude, longitude) 
+            `INSERT INTO food (province, name, images, description, latitude, longitude) 
             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePath, description, latitude, longitude]
+            [province, name, imagePaths, description, latitude, longitude]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -316,22 +348,21 @@ const hotelStorage = multer.diskStorage({
 
 const hotelUpload = multer({ storage: hotelStorage });
 
-app.post('/api/hotel', hotelUpload.single('image'), async (req, res) => {
+app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
     const { province, name, description, latitude, longitude } = req.body;
-    console.log('Request body:', req.body); // ดูข้อมูล request ที่ส่งมา
-    console.log('Request file:', req.file); // ตรวจสอบไฟล์
 
     if (!province || !name || !latitude || !longitude) {
         return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
     }
 
-    const imagePath = req.file ? `/hotelimage/${req.file.filename}` : null;
+    // ดึง path ของรูปทั้งหมดที่อัปโหลด
+    const imagePaths = req.files.map(file => `/hotelimage/${file.filename}`);
 
     try {
         const result = await pool.query(
-            `INSERT INTO hotel (province, name, image, description, latitude, longitude) 
+            `INSERT INTO hotel (province, name, images, description, latitude, longitude) 
             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePath, description, latitude, longitude]
+            [province, name, imagePaths, description, latitude, longitude]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -415,22 +446,21 @@ const touristStorage = multer.diskStorage({
 
 const touristUpload = multer({ storage: touristStorage });
 
-app.post('/api/tourist', touristUpload.single('image'), async (req, res) => {
+app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
     const { province, name, description, latitude, longitude } = req.body;
-    console.log('Request body:', req.body); // ดูข้อมูล request ที่ส่งมา
-    console.log('Request file:', req.file); // ตรวจสอบไฟล์
 
     if (!province || !name || !latitude || !longitude) {
         return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
     }
 
-    const imagePath = req.file ? `/touristimage/${req.file.filename}` : null;
+    // ดึง path ของรูปทั้งหมดที่อัปโหลด
+    const imagePaths = req.files.map(file => `/touristimage/${file.filename}`);
 
     try {
         const result = await pool.query(
-            `INSERT INTO tourist (province, name, image, description, latitude, longitude) 
+            `INSERT INTO tourist (province, name, images, description, latitude, longitude) 
             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePath, description, latitude, longitude]
+            [province, name, imagePaths, description, latitude, longitude]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -592,35 +622,39 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
-// DELETE: ลบโพสต์ได้เฉพาะเจ้าของโพสต์เท่านั้น
+// DELETE: Admin ลบได้ทุกโพสต์ / User ลบได้แค่โพสต์ของตัวเอง
 app.delete('/api/posts/:post_id', authenticateToken, async (req, res) => {
     const { post_id } = req.params;
-    const user_id = req.user.id; // user id ที่มาจาก token
+    const user_id = req.user.id;     // user ID จาก token
+    const user_status = req.user.status; // status จาก token (admin หรือ user)
 
     try {
-        // ตรวจสอบว่าโพสต์นี้เป็นของ user ที่ขอลบหรือไม่
+        // ตรวจสอบว่าโพสต์นี้มีอยู่จริงหรือไม่
         const checkPost = await pool.query('SELECT user_id FROM post WHERE post_id = $1', [post_id]);
 
         if (checkPost.rows.length === 0) {
             return res.status(404).json({ error: "Post not found" });
         }
 
-        if (checkPost.rows[0].user_id !== user_id) {
-            return res.status(403).json({ error: "You can only delete your own posts" });
-        }
+        const postOwnerId = checkPost.rows[0].user_id;
 
-        // ลบโพสต์
-        const result = await pool.query('DELETE FROM post WHERE post_id = $1 RETURNING *', [post_id]);
+        // ✅ ถ้าเป็น admin ให้ลบได้ทุกโพสต์
+        if (user_status === 'admin' || postOwnerId === user_id) {
+            const result = await pool.query('DELETE FROM post WHERE post_id = $1 RETURNING *', [post_id]);
 
-        if (result.rowCount > 0) {
-            io.emit('delete_post', { post_id: parseInt(post_id) }); // 🔥 Broadcast ให้ทุก client ลบโพสต์
-            res.json({ message: "Post deleted successfully", post_id: post_id });
+            if (result.rowCount > 0) {
+                io.emit('delete_post', { post_id: parseInt(post_id) }); // 🔥 Broadcast ให้ทุก client ลบโพสต์
+                return res.json({ message: "Post deleted successfully", post_id: post_id });
+            } else {
+                return res.status(500).json({ error: "Failed to delete post" });
+            }
         } else {
-            res.status(500).json({ error: "Failed to delete post" });
+            return res.status(403).json({ error: "You are not authorized to delete this post" });
         }
+
     } catch (error) {
         console.error("Error deleting post:", error);
-        res.status(500).json({ error: "Internal server error" });
+        return res.status(500).json({ error: "Internal server error" });
     }
 });
 
@@ -687,32 +721,39 @@ app.get('/api/comments/:post_id', async (req, res) => {
     }
 });
 
-// DELETE: ลบคอมเมนต์
+// DELETE: Admin ลบได้ทุกคอมเมนต์ / User ลบได้เฉพาะของตัวเอง
 app.delete('/api/comments/:comment_id', authenticateToken, async (req, res) => {
     const comment_id = parseInt(req.params.comment_id, 10);
-    const user_id = req.user.id;
+    const user_id = req.user.id;       // user ID จาก token
+    const user_status = req.user.status; // status จาก token (admin หรือ user)
 
     try {
+        // ตรวจสอบว่าคอมเมนต์นี้มีอยู่หรือไม่
         const comment = await pool.query('SELECT * FROM comment WHERE comment_id = $1', [comment_id]);
+
         if (comment.rows.length === 0) {
             return res.status(404).json({ message: "Comment not found" });
         }
 
-        if (comment.rows[0].user_comment_id !== user_id) {
+        const commentOwnerId = comment.rows[0].user_comment_id;
+
+        // ✅ ถ้าเป็น admin ให้ลบได้ทุกคอมเมนต์
+        if (user_status === 'admin' || commentOwnerId === user_id) {
+            await pool.query('DELETE FROM comment WHERE comment_id = $1', [comment_id]);
+
+            // 📡 แจ้งเตือนให้ทุก client อัปเดตเมื่อมีการลบคอมเมนต์
+            io.emit('delete_comment', { comment_id, post_id: comment.rows[0].post_id });
+
+            return res.json({ message: "Comment deleted successfully" });
+        } else {
             return res.status(403).json({ message: "You are not allowed to delete this comment" });
         }
-
-        await pool.query('DELETE FROM comment WHERE comment_id = $1', [comment_id]);
-
-        // 📡 แจ้งเตือนให้ทุก client อัปเดตเมื่อมีการลบคอมเมนต์
-        io.emit('delete_comment', { comment_id, post_id: comment.rows[0].post_id });
-
-        res.json({ message: "Comment deleted successfully" });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ message: "Server error" });
+        console.error("Error deleting comment:", err.message);
+        return res.status(500).json({ message: "Server error" });
     }
 });
+
 
 //reviews
 // 📌 เพิ่มรีวิวใหม่
@@ -802,6 +843,35 @@ app.get('/api/reviews/:category/:place_id', async (req, res) => {
             averageRating: parseFloat(statsQuery.rows[0].average_rating),
             reviewCount: parseInt(statsQuery.rows[0].review_count)
         });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// 📌 ดึงข้อมูลสถานที่โดยใช้ place_id
+app.get('/api/place/:category/:place_id', async (req, res) => {
+    try {
+        const { category, place_id } = req.params;
+
+        // ✅ ตรวจสอบค่า category
+        const validCategories = ["food", "hotel", "tourist"];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({ error: "Invalid category" });
+        }
+
+        // ✅ ดึงข้อมูลสถานที่
+        const placeQuery = await pool.query(
+            `SELECT * FROM ${category} WHERE id = $1`,
+            [place_id]
+        );
+
+        if (placeQuery.rowCount === 0) {
+            return res.status(404).json({ error: `Place ID ${place_id} not found in ${category}` });
+        }
+
+        res.json(placeQuery.rows[0]);
 
     } catch (err) {
         console.error(err);

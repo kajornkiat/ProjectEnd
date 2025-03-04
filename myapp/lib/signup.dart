@@ -28,9 +28,6 @@ class _SignUpPageState extends State<SignUpPage> {
     final String username = usernameController.text.trim();
     final String password = passController.text.trim();
 
-    //final RegExp usernameRegExp = RegExp(r'^[a-zA-Z0-9]{1,20}$');
-    //final RegExp passwordRegExp = RegExp(r'^[a-zA-Z0-9]{8,10}$');
-
     if (!usernameRegExp.hasMatch(username)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -51,7 +48,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.39.5.8:3000/api/signup'),
+        Uri.parse('http://192.168.242.162:3000/api/signup'),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({
           'username': username,
@@ -60,6 +57,7 @@ class _SignUpPageState extends State<SignUpPage> {
           'fullname': fullNameController.text.trim(),
           'gender': selectedGender ?? '',
           'birthdate': '$selectedYear-$selectedMonth-$selectedDay',
+          'status': 'user',
         }),
       );
 

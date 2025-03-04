@@ -4,16 +4,16 @@ import 'dart:convert';
 import 'views_admin.dart';
 import 'dart:async';
 
-class SelectPage extends StatefulWidget {
+class SelectAdminPage extends StatefulWidget {
   final String category;
 
-  SelectPage({required this.category});
+  SelectAdminPage({required this.category});
 
   @override
-  _SelectState createState() => _SelectState();
+  _SelectAdminState createState() => _SelectAdminState();
 }
 
-class _SelectState extends State<SelectPage> {
+class _SelectAdminState extends State<SelectAdminPage> {
   List<dynamic> places = [];
   List<dynamic> filteredPlaces = [];
   TextEditingController searchController = TextEditingController();

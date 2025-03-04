@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'add_friends.dart';
 import 'chat.dart';
-import 'profile.dart';
-import 'widgets/tourist.dart';
-import 'widgets/hotel.dart';
-import 'widgets/food.dart';
-import 'widgets/feeds.dart';
+import 'profile_admin.dart';
+import 'widgets/tourist_admin.dart';
+import 'widgets/hotel_admin.dart';
+import 'widgets/food_admin.dart';
+import 'widgets/feeds_admin.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class HomePage extends StatefulWidget {
+class HomeAdminPage extends StatefulWidget {
   final int userId;
-  HomePage({required this.userId, Key? key}) : super(key: key);
+  HomeAdminPage({required this.userId, Key? key}) : super(key: key);
 
   @override
-  _HomePageState createState() => _HomePageState();
+  _HomeAdminPageState createState() => _HomeAdminPageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomeAdminPageState extends State<HomeAdminPage> {
   int _currentIndex = 0;
   String profileImageUrl = 'assets/images/9669.jpg';
   Map<String, dynamic>? userData;
@@ -42,7 +42,7 @@ class _HomePageState extends State<HomePage> {
         },
       ),
       ChatPage(currentUserId: widget.userId),
-      ProfilePage(userId: widget.userId),
+      ProfileAdminPage(userId: widget.userId),
     ];
   }
 
@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> {
               });
               if (index == 3) {
                 // เมื่อสลับไปหน้า ProfilePage
-                _pages[3] = ProfilePage(userId: widget.userId);
+                _pages[3] = ProfileAdminPage(userId: widget.userId);
               }
             },
             children: _pages,
@@ -257,10 +257,10 @@ class HomePageContent extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                Feeds(userData: userData),
-                Tourist(),
-                Hotel(),
-                Food(),
+                FeedsAdmin(userData: userData),
+                TouristAdmin(),
+                HotelAdmin(),
+                FoodAdmin(),
               ],
             ),
           ),

@@ -6,7 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
-class ViewsPage extends StatefulWidget {
+class ViewsAdminPage extends StatefulWidget {
   final String category;
   final int place_id;
   final List<String> imageUrl;
@@ -19,7 +19,7 @@ class ViewsPage extends StatefulWidget {
   final int reviewCount;
   final VoidCallback refreshCallback;
 
-  ViewsPage({
+  ViewsAdminPage({
     required this.category,
     required this.place_id,
     required this.imageUrl,
@@ -34,10 +34,10 @@ class ViewsPage extends StatefulWidget {
   });
 
   @override
-  _ViewsPageState createState() => _ViewsPageState();
+  _ViewsAdminPageState createState() => _ViewsAdminPageState();
 }
 
-class _ViewsPageState extends State<ViewsPage> {
+class _ViewsAdminPageState extends State<ViewsAdminPage> {
   List reviews = [];
   double averageRating = 0.0;
   int reviewCount = 0;

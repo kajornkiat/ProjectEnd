@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'signup.dart'; // import the signup page
 import 'home.dart'; // import the home page for after
+import 'home_admin.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart'; // for token storage
 
@@ -37,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.39.5.8:3000/api/login'),
+        Uri.parse('http://192.168.242.162:3000/api/login'),
         headers: {
           'Content-Type': 'application/json', // กำหนด Content-Type เป็น JSON
         },
@@ -52,22 +53,32 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final int userId = data['id'];
+        final String status = data['status'];
         final token = data['token'] ?? ''; // Handle token if available
 
         // Save token in SharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
         await saveUserData(userId); // 🔥 เพิ่มฟังก์ชันนี้
+        await prefs.setString('status', status);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login successful')),
         );
 
-        // Navigate to HomePage
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage(userId: userId)),
-        );
+        // นำทางไปยังหน้าที่เหมาะสมตาม status
+        if (status == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => HomeAdminPage(userId: userId)),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => HomePage(userId: userId)),
+          );
+        }
       } else if (response.statusCode == 400) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

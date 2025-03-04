@@ -10,15 +10,15 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 late IO.Socket socket;
 
-class ProfilePage extends StatefulWidget {
+class ProfileAdminPage extends StatefulWidget {
   final int userId;
-  const ProfilePage({required this.userId, super.key});
+  const ProfileAdminPage({required this.userId, super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfileAdminPage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfileAdminPage> {
   String profileImageUrl = ''; // URL ของรูปโปรไฟล์
   String backgroundImageUrl = ''; // URL ของรูปพื้นหลัง
   String userName = ''; // ชื่อของผู้ใช้

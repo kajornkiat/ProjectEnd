@@ -9,15 +9,15 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 late IO.Socket socket;
 
-class FeedsviewsPage extends StatefulWidget {
+class FeedsviewsAdminPage extends StatefulWidget {
   final Map<String, dynamic> userData;
-  FeedsviewsPage({required this.userData});
+  FeedsviewsAdminPage({required this.userData});
 
   @override
-  _FeedsviewsPageState createState() => _FeedsviewsPageState();
+  _FeedsviewsAdminPageState createState() => _FeedsviewsAdminPageState();
 }
 
-class _FeedsviewsPageState extends State<FeedsviewsPage> {
+class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
   List<dynamic> posts = [];
   //Map<int, List<dynamic>> postComments = {}; // เก็บคอมเมนต์ของแต่ละโพสต์
   Map<int, TextEditingController> commentControllers =
@@ -466,39 +466,32 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                         itemBuilder: (context, index) {
                           final comment = postComments[postId]![index];
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'http://192.168.242.162:3000${comment['profile_image']}',
+                              leading: CircleAvatar(
+                                backgroundImage: NetworkImage(
+                                  'http://192.168.242.162:3000${comment['profile_image']}',
+                                ),
                               ),
-                            ),
-                            title: Text(comment['fullname']),
-                            subtitle: Text(comment['comment']),
-                            trailing: comment['user_id'] ==
-                                    userId // ✅ แสดงจุดไข่ปลาเฉพาะคอมเมนต์ของตนเอง
-                                ? PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == "delete") {
-                                        deleteComment(
-                                            postId,
-                                            comment['comment_id'],
-                                            setModalState);
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem(
-                                        value: "delete",
-                                        child: Text("Delete",
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ),
-                                      PopupMenuItem(
-                                        value: "cancel",
-                                        child: Text("Cancel"),
-                                      ),
-                                    ],
-                                  )
-                                : null, // 🔹 ถ้าไม่ใช่เจ้าของคอมเมนต์ จะไม่แสดงปุ่ม
-                          );
+                              title: Text(comment['fullname']),
+                              subtitle: Text(comment['comment']),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == "delete") {
+                                    deleteComment(postId, comment['comment_id'],
+                                        setModalState);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: "delete",
+                                    child: Text("Delete",
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
+                                  PopupMenuItem(
+                                    value: "cancel",
+                                    child: Text("Cancel"),
+                                  ),
+                                ],
+                              ));
                         },
                       ),
                     ),
@@ -634,39 +627,36 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: post['profile_image'] != null
-                                    ? NetworkImage(
-                                        'http://192.168.242.162:3000${post['profile_image']}')
-                                    : AssetImage(
-                                            'assets/images/default_profile.png')
-                                        as ImageProvider,
-                              ),
-                              title: Text(post['fullname'],
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
-                              trailing: post['user_id'] == userId
-                                  ? PopupMenuButton<String>(
-                                      onSelected: (value) {
-                                        if (value == "delete") {
-                                          deletePost(post['post_id']);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        PopupMenuItem(
-                                          value: "delete",
-                                          child: Text("Delete"),
-                                        ),
-                                        const PopupMenuItem(
-                                          value:
-                                              "cancel", // 🔹 เพิ่มตัวเลือก "Cancel"
-                                          child: Text("Cancel"),
-                                        ),
-                                      ],
-                                    )
-                                  : null, // 🔹 ซ่อนปุ่ม
-                            ),
+                                leading: CircleAvatar(
+                                  backgroundImage: post['profile_image'] != null
+                                      ? NetworkImage(
+                                          'http://192.168.242.162:3000${post['profile_image']}')
+                                      : AssetImage(
+                                              'assets/images/default_profile.png')
+                                          as ImageProvider,
+                                ),
+                                title: Text(post['fullname'],
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
+                                trailing: PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    if (value == "delete") {
+                                      deletePost(post['post_id']);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: "delete",
+                                      child: Text("Delete"),
+                                    ),
+                                    const PopupMenuItem(
+                                      value:
+                                          "cancel", // 🔹 เพิ่มตัวเลือก "Cancel"
+                                      child: Text("Cancel"),
+                                    ),
+                                  ],
+                                )),
                             if (post['image'] != null)
                               Image.network(
                                   'http://192.168.242.162:3000/posts/${post['image']}'),

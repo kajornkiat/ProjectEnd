@@ -47,7 +47,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
   @override
   void initSocket() {
-    socket = IO.io('http://10.39.5.8:3000', <String, dynamic>{
+    socket = IO.io('http://192.168.242.162:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
@@ -91,7 +91,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> checkFriendStatus() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://10.39.5.8:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
+          'http://192.168.242.162:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -112,7 +112,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> sendFriendRequest() async {
     try {
       final response = await http.post(
-        Uri.parse('http://10.39.5.8:3000/api/friends/request'),
+        Uri.parse('http://192.168.242.162:3000/api/friends/request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "sender_id": widget.currentUserId,
@@ -135,7 +135,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> deleteFriend() async {
     try {
       final response = await http.delete(
-        Uri.parse('http://10.39.5.8:3000/api/friends/delete'),
+        Uri.parse('http://192.168.242.162:3000/api/friends/delete'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "user_id": widget.currentUserId,
@@ -215,7 +215,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
             onPressed: () {
               String imageUrl = widget.profileImageUrl.isNotEmpty
                   ? widget.profileImageUrl
-                  : 'http://10.39.5.8:3000/default_profile.png';
+                  : 'http://192.168.242.162:3000/default_profile.png';
 
               Navigator.push(
                 context,
@@ -283,7 +283,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.39.5.8:3000/api/posts?user_id=${widget.userId}'),
+        Uri.parse('http://192.168.242.162:3000/api/posts?user_id=${widget.userId}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -317,7 +317,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> fetchComments(int postId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.39.5.8:3000/api/comments/$postId'),
+        Uri.parse('http://192.168.242.162:3000/api/comments/$postId'),
       );
 
       if (response.statusCode == 200) {
@@ -346,7 +346,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
     String? token = prefs.getString('token');
 
     final response = await http.post(
-      Uri.parse("http://10.39.5.8:3000/api/comments"),
+      Uri.parse("http://192.168.242.162:3000/api/comments"),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -378,7 +378,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
     String? token = prefs.getString('token');
 
     final response = await http.delete(
-      Uri.parse("http://10.39.5.8:3000/api/comments/$commentId"),
+      Uri.parse("http://192.168.242.162:3000/api/comments/$commentId"),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -422,7 +422,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundImage: NetworkImage(
-                                'http://10.39.5.8:3000${comment['profile_image']}',
+                                'http://192.168.242.162:3000${comment['profile_image']}',
                               ),
                             ),
                             title: Text(comment['fullname']),
@@ -508,7 +508,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                 leading: CircleAvatar(
                   backgroundImage: post['profile_image'] != null
                       ? NetworkImage(
-                          'http://10.39.5.8:3000${post['profile_image']}')
+                          'http://192.168.242.162:3000${post['profile_image']}')
                       : AssetImage('assets/images/default_profile.png')
                           as ImageProvider,
                 ),
@@ -516,7 +516,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               if (post['image'] != null)
-                Image.network('http://10.39.5.8:3000/posts/${post['image']}'),
+                Image.network('http://192.168.242.162:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Column(
@@ -547,7 +547,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                       backgroundImage: post['profile_image'] != null &&
                               post['profile_image'].isNotEmpty
                           ? NetworkImage(
-                              'http://10.39.5.8:3000${post['profile_image']}')
+                              'http://192.168.242.162:3000${post['profile_image']}')
                           : AssetImage('assets/images/default_profile.png')
                               as ImageProvider,
                       radius: 15,
