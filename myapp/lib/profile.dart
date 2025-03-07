@@ -36,7 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     fetchImages(); // เรียกใช้ฟังก์ชันดึงข้อมูลเมื่อเริ่มต้น
-    fetchFriends(); // ดึงรายชื่อเพื่อน
+    fetchAcceptedFriends(); // ดึงรายชื่อเพื่อน
     getCurrentUserId().then((_) {
       fetchPosts(); // เรียก fetchPosts หลังจาก userId ถูกตั้งค่า
     });
@@ -342,37 +342,54 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   //ฟังก์ขันดึงรายชื่อเพื่อน
-  Future<void> fetchFriends() async {
+  Future<void> fetchAcceptedFriends() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
-    final response = await http.get(
-      Uri.parse('http://192.168.242.162:3000/friends/${widget.userId}'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
+    if (token == null) {
+      print("Token is null");
+      return;
+    }
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      setState(() {
-        friends = data
-            .map((friend) => {
-                  'id': friend['id'],
-                  'fullname': friend['fullname'],
-                  'profileImage':
-                      'http://192.168.242.162:3000${friend['profile_image']}',
-                  'backgroundImage':
-                      'http://192.168.242.162:3000${friend['background_image']}',
-                })
-            .toList();
-      });
-    } else {
-      print('Failed to load friends');
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'http://192.168.242.162:3000/api/friends/accepted/${widget.userId}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          friends = data
+              .map((friend) => {
+                    'id': friend['id'] ?? 0,
+                    'fullname': friend['fullname'] ?? 'Unknown',
+                    'profileImage':
+                        'http://192.168.242.162:3000${friend['profile_image'] ?? ''}',
+                    'backgroundImage':
+                        'http://192.168.242.162:3000${friend['background_image'] ?? ''}',
+                    'status': friend['status'] ?? 'user',
+                  })
+              .toList();
+        });
+      } else {
+        print(
+            'Failed to load accepted friends: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print("Error fetching accepted friends: $e");
     }
   }
 
   Widget buildFriendsList() {
+    if (friends.isEmpty) {
+      return const Center(
+        child: Text("No friends available"), // แสดงข้อความเมื่อไม่มีเพื่อน
+      );
+    }
     return SizedBox(
       height: 100, // กำหนดความสูงของ list เพื่อน
       child: ListView.builder(
@@ -395,6 +412,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     profileImageUrl: friend['profileImage'],
                     backgroundImageUrl:
                         friend['backgroundImage'], // หรือค่าอื่นที่เหมาะสม
+                    status: friend['status'],
+                    //friend_status: friend['friend_status'],
                   ),
                 ),
               );
@@ -715,8 +734,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       : AssetImage('assets/images/default_profile.png')
                           as ImageProvider,
                 ),
-                title: Text(post['fullname'],
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  post['fullname'] ??
+                      'Unknown User', // Fallback for null fullname
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  overflow:
+                      TextOverflow.ellipsis, // Add ellipsis if text overflows
+                  maxLines: 1, // Limit to one line
+                ),
                 // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
                 trailing: post['user_id'] == userId
                     ? PopupMenuButton<String>(
@@ -739,7 +764,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     : null, // 🔹 ซ่อนปุ่ม
               ),
               if (post['image'] != null)
-                Image.network('http://192.168.242.162:3000/posts/${post['image']}'),
+                Image.network(
+                    'http://192.168.242.162:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Column(
@@ -909,13 +935,17 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             const SizedBox(height: 65), // ปรับขนาดให้เว้นระยะห่างด้านบน
-            Text(
-              userName,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+            Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 50), // เว้นขอบซ้าย-ขวา 16px
+              child: Text(
+                userName,
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+
             const SizedBox(height: 20), // ✅ เพิ่มระยะห่างก่อนแสดงเพื่อน
             buildFriendsList(), // ✅ เพิ่มส่วนแสดงรายชื่อเพื่อนที่นี่
             buildPosts(), // แสดงโพสต์ของผู้ใช้

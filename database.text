@@ -16,7 +16,7 @@ CREATE TABLE friends (
     id SERIAL PRIMARY KEY,
     sender_id INT REFERENCES users(id) ON DELETE CASCADE,  
     receiver_id INT REFERENCES users(id) ON DELETE CASCADE, 
-    status VARCHAR(10) DEFAULT 'pending',  
+    friend_status VARCHAR(10) DEFAULT 'pending',  
     created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
 );
 
@@ -65,7 +65,10 @@ CREATE TABLE food (
     images TEXT[];,                              
     description TEXT,                        
     latitude FLOAT NOT NULL,
-    longitude FLOAT NOT NULL          
+    longitude FLOAT NOT NULL,
+    price VARCHAR(255), 
+    phone VARCHAR(20), 
+    placetyp VARCHAR(255)          
 );
 
 CREATE TABLE hotel (

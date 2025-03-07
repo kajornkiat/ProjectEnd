@@ -372,61 +372,6 @@ class _ProfilePageState extends State<ProfileAdminPage> {
     }
   }
 
-  Widget buildFriendsList() {
-    return SizedBox(
-      height: 100, // กำหนดความสูงของ list เพื่อน
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal, // เลื่อนแนวนอน
-        itemCount: friends.length,
-        itemBuilder: (context, index) {
-          final friend = friends[index];
-
-          return GestureDetector(
-            onTap: () {
-              // 👉 ไปที่หน้า friendprofile.dart และส่ง userId ของเพื่อน
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FriendProfilePage(
-                    userId: friend['id'],
-                    currentUserId: widget
-                        .userId, // ใช้ userId ของโปรไฟล์ปัจจุบันเป็น currentUserId
-                    fullname: friend['fullname'],
-                    profileImageUrl: friend['profileImage'],
-                    backgroundImageUrl:
-                        friend['backgroundImage'], // หรือค่าอื่นที่เหมาะสม
-                  ),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 35,
-                    backgroundImage: NetworkImage(friend['profileImage']),
-                  ),
-                  const SizedBox(height: 5),
-                  SizedBox(
-                    width: 70,
-                    child: Text(
-                      friend['fullname'],
-                      style: const TextStyle(fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   // ดึง userId จาก SharedPreferences
   Future<void> getCurrentUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -628,7 +573,17 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                                 'http://192.168.242.162:3000${comment['profile_image']}',
                               ),
                             ),
-                            title: Text(comment['fullname']),
+                            title: Text(
+                              comment['fullname'],
+                              maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                              overflow: TextOverflow
+                                  .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                              style: TextStyle(
+                                fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                fontWeight: FontWeight
+                                    .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                              ),
+                            ),
                             subtitle: Text(comment['comment']),
                             trailing: comment['user_id'] ==
                                     userId // ✅ แสดงจุดไข่ปลาเฉพาะคอมเมนต์ของตนเอง
@@ -739,7 +694,8 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                     : null, // 🔹 ซ่อนปุ่ม
               ),
               if (post['image'] != null)
-                Image.network('http://192.168.242.162:3000/posts/${post['image']}'),
+                Image.network(
+                    'http://192.168.242.162:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Column(
@@ -917,7 +873,6 @@ class _ProfilePageState extends State<ProfileAdminPage> {
               ),
             ),
             const SizedBox(height: 20), // ✅ เพิ่มระยะห่างก่อนแสดงเพื่อน
-            buildFriendsList(), // ✅ เพิ่มส่วนแสดงรายชื่อเพื่อนที่นี่
             buildPosts(), // แสดงโพสต์ของผู้ใช้
           ],
         ),

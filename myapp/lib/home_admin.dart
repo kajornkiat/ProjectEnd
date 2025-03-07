@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'add_friends.dart';
+import 'control_users.dart';
 import 'chat.dart';
 import 'profile_admin.dart';
 import 'widgets/tourist_admin.dart';
@@ -33,7 +33,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     }
     return [
       HomePageContent(userData: userData!),
-      AddFriendsPage(
+      ControlUsersPage(
         currentUserId: widget.userId,
         onRequestCountChange: (count) {
           setState(() {

@@ -125,34 +125,46 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
-// Update User Status Endpoint (เฉพาะแอดมินเท่านั้น)
-app.put('/api/update-status', async (req, res) => {
-    const { userId, newStatus } = req.body;
-
-    // ตรวจสอบว่า status ที่กำหนดมีค่าเป็น admin หรือ user เท่านั้น
-    const allowedStatuses = ['admin', 'user'];
-    if (!allowedStatuses.includes(newStatus)) {
-        return res.status(400).json({ error: 'Invalid status value' });
-    }
-
+app.get('/api/users/all', async (req, res) => {
     try {
-        // อัปเดตค่า status ของผู้ใช้
-        const result = await pool.query(
-            'UPDATE users SET status = $1 WHERE id = $2 RETURNING *',
-            [newStatus, userId]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.json({ message: 'Status updated successfully', user: result.rows[0] });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        const result = await pool.query("SELECT id, username, fullname, profile_image, background_image, status FROM users");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server error" });
     }
 });
 
+app.put('/api/users/update-status', async (req, res) => {
+    const { userId, status } = req.body;
+    if (!userId || !status) {
+        return res.status(400).json({ error: "Missing data" });
+    }
+
+    try {
+        await pool.query("UPDATE users SET status = $1 WHERE id = $2", [status, userId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to update status" });
+    }
+});
+
+
+app.delete('/api/users/delete', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) {
+        return res.status(400).json({ error: 'Missing userId' });
+    }
+
+    try {
+        await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 
 // Profile Endpoint
@@ -251,10 +263,10 @@ const foodUpload = multer({ storage: foodStorage });
 
 // ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุด 5 รูป
 app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
-    const { province, name, description, latitude, longitude } = req.body;
+    const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
-        return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
+        return res.status(400).json({ error: 'Province, Name, Latitude, and Longitude are required.' });
     }
 
     // ดึง path ของรูปทั้งหมดที่อัปโหลด
@@ -262,9 +274,9 @@ app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
 
     try {
         const result = await pool.query(
-            `INSERT INTO food (province, name, images, description, latitude, longitude) 
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePaths, description, latitude, longitude]
+            `INSERT INTO food (province, name, images, description, latitude, longitude, price, phone, placetyp) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [province, name, imagePaths, description, latitude, longitude, price, phone, placetyp]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -272,9 +284,58 @@ app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
     }
 });
 
+app.put('/api/food', foodUpload.array('images', 5), async (req, res) => {
+    const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required.' });
+    }
+
+    try {
+        // ดึงข้อมูลปัจจุบันของร้านอาหารก่อน
+        const existingFood = await pool.query('SELECT images FROM food WHERE id = $1', [place_id]);
+        if (existingFood.rows.length === 0) {
+            return res.status(404).json({ error: 'Food not found.' });
+        }
+
+        let imagePaths = existingFood.rows[0].images || []; // ดึงรูปที่มีอยู่
+
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        if (req.files.length > 0) {
+            imagePaths = req.files.map(file => `/foodimage/${file.filename}`);
+        }
+
+        // อัปเดตข้อมูลในฐานข้อมูล
+        const result = await pool.query(
+            `UPDATE food 
+             SET province = $1, name = $2, images = $3, description = $4, latitude = $5, longitude = $6, 
+                 price = $7, phone = $8, placetyp = $9
+             WHERE id = $10 RETURNING *`,
+            [
+                province,
+                name,
+                imagePaths, // ✅ ใช้เป็น Array ตรงๆ เพราะ PostgreSQL รองรับ TEXT[]
+                description,
+                parseFloat(latitude),  // ✅ แปลง latitude เป็นตัวเลข
+                parseFloat(longitude), // ✅ แปลง longitude เป็นตัวเลข
+                price,
+                phone,
+                placetyp,
+                place_id
+            ]
+        );
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 app.get('/api/food', async (req, res) => {
     try {
-        const { province, name } = req.query; // ดึงค่าที่ใช้ค้นหา
+        const { province, name, placetyp, price, phone } = req.query;
         let query = 'SELECT * FROM food';
         let conditions = [];
         let values = [];
@@ -288,12 +349,23 @@ app.get('/api/food', async (req, res) => {
             conditions.push(`LOWER(name) LIKE $${values.length + 1}`);
             values.push(`%${name.toLowerCase()}%`);
         }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้ทั้ง 2 ฟิลด์
+        if (placetyp) {
+            conditions.push(`LOWER(placetyp) LIKE $${values.length + 1}`);
+            values.push(`%${placetyp.toLowerCase()}%`);
+        }
+        if (price) {
+            conditions.push(`price = $${values.length + 1}`);
+            values.push(price);
+        }
+        if (phone) {
+            conditions.push(`phone = $${values.length + 1}`);
+            values.push(phone);
         }
 
-        // ดึงข้อมูลจาก PostgreSQL
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้หลากหลาย
+        }
+
         const result = await pool.query(query, values);
         let foodData = result.rows;
 
@@ -301,7 +373,6 @@ app.get('/api/food', async (req, res) => {
         for (let i = 0; i < foodData.length; i++) {
             const food = foodData[i];
 
-            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
             const statsQuery = await pool.query(
                 `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
                  FROM reviews 
@@ -319,20 +390,24 @@ app.get('/api/food', async (req, res) => {
                 (name && a.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
             let scoreB = (province && b.province.toLowerCase().startsWith(province.toLowerCase()) ? 1 : 0) +
                 (name && b.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
-            return scoreB - scoreA; // เรียงจากคะแนนมากไปน้อย
+            return scoreB - scoreA;
         });
-
-        // ตรวจสอบให้แน่ใจว่ามีข้อมูล latitude และ longitude
-        foodData = foodData.map(food => ({
-            ...food,
-            latitude: food.latitude || 0.0,
-            longitude: food.longitude || 0.0
-        }));
 
         res.json(foodData);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
+    }
+});
+
+app.delete('/api/food/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await pool.query('DELETE FROM food WHERE id = $1', [id]);
+        res.status(200).json({ message: 'Place deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -349,10 +424,10 @@ const hotelStorage = multer.diskStorage({
 const hotelUpload = multer({ storage: hotelStorage });
 
 app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
-    const { province, name, description, latitude, longitude } = req.body;
+    const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
-        return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
+        return res.status(400).json({ error: 'Province, Name, Latitude, and Longitude are required.' });
     }
 
     // ดึง path ของรูปทั้งหมดที่อัปโหลด
@@ -360,9 +435,9 @@ app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
 
     try {
         const result = await pool.query(
-            `INSERT INTO hotel (province, name, images, description, latitude, longitude) 
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePaths, description, latitude, longitude]
+            `INSERT INTO hotel (province, name, images, description, latitude, longitude, price, phone, placetyp) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [province, name, imagePaths, description, latitude, longitude, price, phone, placetyp]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -370,9 +445,58 @@ app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
     }
 });
 
+app.put('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
+    const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required.' });
+    }
+
+    try {
+        // ดึงข้อมูลปัจจุบันของร้านอาหารก่อน
+        const existinghotel = await pool.query('SELECT images FROM hotel WHERE id = $1', [place_id]);
+        if (existinghotel.rows.length === 0) {
+            return res.status(404).json({ error: 'hotel not found.' });
+        }
+
+        let imagePaths = existinghotel.rows[0].images || []; // ดึงรูปที่มีอยู่
+
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        if (req.files.length > 0) {
+            imagePaths = req.files.map(file => `/hotelimage/${file.filename}`);
+        }
+
+        // อัปเดตข้อมูลในฐานข้อมูล
+        const result = await pool.query(
+            `UPDATE hotel 
+             SET province = $1, name = $2, images = $3, description = $4, latitude = $5, longitude = $6, 
+                 price = $7, phone = $8, placetyp = $9
+             WHERE id = $10 RETURNING *`,
+            [
+                province,
+                name,
+                imagePaths, // ✅ ใช้เป็น Array ตรงๆ เพราะ PostgreSQL รองรับ TEXT[]
+                description,
+                parseFloat(latitude),  // ✅ แปลง latitude เป็นตัวเลข
+                parseFloat(longitude), // ✅ แปลง longitude เป็นตัวเลข
+                price,
+                phone,
+                placetyp,
+                place_id
+            ]
+        );
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 app.get('/api/hotel', async (req, res) => {
     try {
-        const { province, name } = req.query; // ดึงค่าที่ใช้ค้นหา
+        const { province, name, placetyp, price, phone } = req.query;
         let query = 'SELECT * FROM hotel';
         let conditions = [];
         let values = [];
@@ -386,20 +510,30 @@ app.get('/api/hotel', async (req, res) => {
             conditions.push(`LOWER(name) LIKE $${values.length + 1}`);
             values.push(`%${name.toLowerCase()}%`);
         }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้ทั้ง 2 ฟิลด์
+        if (placetyp) {
+            conditions.push(`LOWER(placetyp) LIKE $${values.length + 1}`);
+            values.push(`%${placetyp.toLowerCase()}%`);
+        }
+        if (price) {
+            conditions.push(`price = $${values.length + 1}`);
+            values.push(price);
+        }
+        if (phone) {
+            conditions.push(`phone = $${values.length + 1}`);
+            values.push(phone);
         }
 
-        // ดึงข้อมูลจาก PostgreSQL
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้หลากหลาย
+        }
+
         const result = await pool.query(query, values);
         let hotelData = result.rows;
 
-        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ food
+        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ hotel
         for (let i = 0; i < hotelData.length; i++) {
             const hotel = hotelData[i];
 
-            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
             const statsQuery = await pool.query(
                 `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
                  FROM reviews 
@@ -417,20 +551,24 @@ app.get('/api/hotel', async (req, res) => {
                 (name && a.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
             let scoreB = (province && b.province.toLowerCase().startsWith(province.toLowerCase()) ? 1 : 0) +
                 (name && b.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
-            return scoreB - scoreA; // เรียงจากคะแนนมากไปน้อย
+            return scoreB - scoreA;
         });
-
-        // ตรวจสอบให้แน่ใจว่ามีข้อมูล latitude และ longitude
-        hotelData = hotelData.map(hotel => ({
-            ...hotel,
-            latitude: hotel.latitude || 0.0,
-            longitude: hotel.longitude || 0.0
-        }));
 
         res.json(hotelData);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
+    }
+});
+
+app.delete('/api/hotel/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await pool.query('DELETE FROM hotel WHERE id = $1', [id]);
+        res.status(200).json({ message: 'Place deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -447,10 +585,10 @@ const touristStorage = multer.diskStorage({
 const touristUpload = multer({ storage: touristStorage });
 
 app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
-    const { province, name, description, latitude, longitude } = req.body;
+    const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
-        return res.status(400).json({ error: 'Province, Name, latitude, and longitude are required.' });
+        return res.status(400).json({ error: 'Province, Name, Latitude, and Longitude are required.' });
     }
 
     // ดึง path ของรูปทั้งหมดที่อัปโหลด
@@ -458,9 +596,9 @@ app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
 
     try {
         const result = await pool.query(
-            `INSERT INTO tourist (province, name, images, description, latitude, longitude) 
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [province, name, imagePaths, description, latitude, longitude]
+            `INSERT INTO tourist (province, name, images, description, latitude, longitude, price, phone, placetyp) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [province, name, imagePaths, description, latitude, longitude, price, phone, placetyp]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -468,9 +606,58 @@ app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
     }
 });
 
+app.put('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
+    const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required.' });
+    }
+
+    try {
+        // ดึงข้อมูลปัจจุบันของร้านอาหารก่อน
+        const existingtourist = await pool.query('SELECT images FROM tourist WHERE id = $1', [place_id]);
+        if (existingtourist.rows.length === 0) {
+            return res.status(404).json({ error: 'tourist not found.' });
+        }
+
+        let imagePaths = existingtourist.rows[0].images || []; // ดึงรูปที่มีอยู่
+
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        if (req.files.length > 0) {
+            imagePaths = req.files.map(file => `/touristimage/${file.filename}`);
+        }
+
+        // อัปเดตข้อมูลในฐานข้อมูล
+        const result = await pool.query(
+            `UPDATE tourist 
+             SET province = $1, name = $2, images = $3, description = $4, latitude = $5, longitude = $6, 
+                 price = $7, phone = $8, placetyp = $9
+             WHERE id = $10 RETURNING *`,
+            [
+                province,
+                name,
+                imagePaths, // ✅ ใช้เป็น Array ตรงๆ เพราะ PostgreSQL รองรับ TEXT[]
+                description,
+                parseFloat(latitude),  // ✅ แปลง latitude เป็นตัวเลข
+                parseFloat(longitude), // ✅ แปลง longitude เป็นตัวเลข
+                price,
+                phone,
+                placetyp,
+                place_id
+            ]
+        );
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 app.get('/api/tourist', async (req, res) => {
     try {
-        const { province, name } = req.query; // ดึงค่าที่ใช้ค้นหา
+        const { province, name, placetyp, price, phone } = req.query;
         let query = 'SELECT * FROM tourist';
         let conditions = [];
         let values = [];
@@ -484,20 +671,30 @@ app.get('/api/tourist', async (req, res) => {
             conditions.push(`LOWER(name) LIKE $${values.length + 1}`);
             values.push(`%${name.toLowerCase()}%`);
         }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้ทั้ง 2 ฟิลด์
+        if (placetyp) {
+            conditions.push(`LOWER(placetyp) LIKE $${values.length + 1}`);
+            values.push(`%${placetyp.toLowerCase()}%`);
+        }
+        if (price) {
+            conditions.push(`price = $${values.length + 1}`);
+            values.push(price);
+        }
+        if (phone) {
+            conditions.push(`phone = $${values.length + 1}`);
+            values.push(phone);
         }
 
-        // ดึงข้อมูลจาก PostgreSQL
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' OR '); // ใช้ OR เพื่อให้ค้นหาได้หลากหลาย
+        }
+
         const result = await pool.query(query, values);
         let touristData = result.rows;
 
-        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ food
+        // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับแต่ละ tourist
         for (let i = 0; i < touristData.length; i++) {
             const tourist = touristData[i];
 
-            // คำนวณค่าเฉลี่ย rating และจำนวนรีวิวสำหรับ food
             const statsQuery = await pool.query(
                 `SELECT COALESCE(AVG(rating), 0) AS average_rating, COUNT(*) AS review_count 
                  FROM reviews 
@@ -515,20 +712,24 @@ app.get('/api/tourist', async (req, res) => {
                 (name && a.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
             let scoreB = (province && b.province.toLowerCase().startsWith(province.toLowerCase()) ? 1 : 0) +
                 (name && b.name.toLowerCase().startsWith(name.toLowerCase()) ? 1 : 0);
-            return scoreB - scoreA; // เรียงจากคะแนนมากไปน้อย
+            return scoreB - scoreA;
         });
-
-        // ตรวจสอบให้แน่ใจว่ามีข้อมูล latitude และ longitude
-        touristData = touristData.map(tourist => ({
-            ...tourist,
-            latitude: tourist.latitude || 0.0,
-            longitude: tourist.longitude || 0.0
-        }));
 
         res.json(touristData);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
+    }
+});
+
+app.delete('/api/tourist/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await pool.query('DELETE FROM tourist WHERE id = $1', [id]);
+        res.status(200).json({ message: 'Place deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -822,7 +1023,7 @@ app.get('/api/reviews/:category/:place_id', async (req, res) => {
 
         // ✅ ดึงรีวิวทั้งหมด
         const reviewsQuery = await pool.query(
-            `SELECT r.*, u.username, u.profile_image 
+            `SELECT r.*, u.fullname, u.profile_image 
              FROM reviews r 
              JOIN users u ON r.user_id = u.id 
              WHERE r.category = $1 AND r.place_id = $2 
@@ -910,13 +1111,54 @@ app.delete('/api/reviews/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// 📌 ลบรีวิว (เฉพาะ admin สามารถลบได้ทั้งหมด)
+app.delete('/api/admin/reviews/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user_id = req.user.id;
+
+        // ✅ ตรวจสอบว่า user เป็น admin หรือไม่
+        const adminCheck = await pool.query(
+            "SELECT status FROM users WHERE id = $1",
+            [user_id]
+        );
+
+        if (adminCheck.rowCount === 0 || adminCheck.rows[0].status !== 'admin') {
+            return res.status(403).json({ error: "Only admins can delete any reviews" });
+        }
+
+        // ✅ ตรวจสอบว่ารีวิวมีอยู่หรือไม่
+        const reviewCheck = await pool.query(
+            "SELECT * FROM reviews WHERE id = $1",
+            [id]
+        );
+
+        if (reviewCheck.rowCount === 0) {
+            return res.status(404).json({ error: "Review not found" });
+        }
+
+        // ✅ ลบรีวิว
+        const review = await pool.query(
+            "DELETE FROM reviews WHERE id = $1 RETURNING *",
+            [id]
+        );
+
+        io.emit('deleteReview', id);
+        res.json({ message: "Review deleted successfully by admin", deletedReview: review.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
 //add_freinds
 // 🔎 API ค้นหาผู้ใช้ตาม fullname
 app.get("/api/users/search", async (req, res) => {
     try {
         const { fullname } = req.query;
         const query = `
-        SELECT id, fullname, profile_image, background_image
+        SELECT id, fullname, profile_image, background_image, status
         FROM users 
         WHERE LOWER(fullname) LIKE LOWER($1) 
         LIMIT 10
@@ -944,7 +1186,7 @@ app.post('/api/friends/request', async (req, res) => {
         }
 
         await pool.query(
-            'INSERT INTO friends (sender_id, receiver_id, status) VALUES ($1, $2, $3)',
+            'INSERT INTO friends (sender_id, receiver_id, friend_status) VALUES ($1, $2, $3)',
             [sender_id, receiver_id, 'pending']
         );
         res.json({ message: 'Friend request sent' });
@@ -960,7 +1202,7 @@ app.put('/api/friends/accept', async (req, res) => {
 
     try {
         await pool.query(
-            'UPDATE friends SET status = $1 WHERE sender_id = $2 AND receiver_id = $3',
+            'UPDATE friends SET friend_status = $1 WHERE sender_id = $2 AND receiver_id = $3',
             ['accepted', sender_id, receiver_id]
         );
         res.json({ message: 'Friend request accepted' });
@@ -971,23 +1213,61 @@ app.put('/api/friends/accept', async (req, res) => {
 });
 
 //API เช็กสถานะเพื่อน
-app.get('/api/friends/status', async (req, res) => {
+app.get('/api/friends/friend_status', async (req, res) => {
     const { user_id, friend_id } = req.query;
 
     try {
         const result = await pool.query(
-            'SELECT status FROM friends WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
+            'SELECT friend_status FROM friends WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
             [user_id, friend_id]
         );
 
         if (result.rows.length > 0) {
-            res.json({ status: result.rows[0].status });
+            const friendStatus = result.rows[0].friend_status; // ใช้ชื่อคอลัมน์ให้ถูกต้อง
+            if (friendStatus) {
+                res.json({ status: friendStatus }); // ส่งกลับ friend_status
+            } else {
+                res.json({ status: 'none' }); // หาก friend_status เป็น null
+            }
         } else {
-            res.json({ status: 'none' });
+            res.json({ status: 'none' }); // หากไม่พบข้อมูล
         }
-
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Error in /api/friends/friend_status:", error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/friends/accepted/:userId', async (req, res) => {
+    const userId = req.params.userId;
+
+    try {
+        const result = await pool.query(
+            `SELECT 
+          u.id, 
+          u.fullname, 
+          u.profile_image, 
+          u.background_image, 
+          u.status
+         FROM 
+          friends f
+         JOIN 
+          users u ON (f.sender_id = u.id OR f.receiver_id = u.id)
+         WHERE 
+          (f.sender_id = $1 OR f.receiver_id = $1) 
+          AND f.friend_status = 'accepted' 
+          AND u.id != $1`, // ตรวจสอบว่าไม่รวมผู้ใช้ปัจจุบัน
+            [userId]
+        );
+
+        if (result.rows.length > 0) {
+            res.json(result.rows);
+        } else {
+            res.json([]); // ส่งกลับอาร์เรย์ว่างหากไม่พบข้อมูล
+        }
+    } catch (error) {
+        console.error("Error fetching accepted friends:", error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -1000,7 +1280,7 @@ app.get('/api/friends/requests', async (req, res) => {
             SELECT u.id, u.fullname, u.profile_image, u.background_image
             FROM friends f
             JOIN users u ON f.sender_id = u.id
-            WHERE f.receiver_id = $1 AND f.status = 'pending'
+            WHERE f.receiver_id = $1 AND f.friend_status = 'pending'
         `;
         const result = await pool.query(query, [receiver_id]);
 
@@ -1033,7 +1313,7 @@ app.get('/api/friends/pending/count', async (req, res) => {
 
     try {
         const { rows } = await pool.query(
-            "SELECT COUNT(*) FROM friends WHERE receiver_id = $1 AND status = 'pending'",
+            "SELECT COUNT(*) FROM friends WHERE receiver_id = $1 AND friend_status = 'pending'",
             [user_id]
         );
 
@@ -1059,7 +1339,7 @@ app.get('/api/friends/search', async (req, res) => {
             JOIN friends f ON 
                 (f.sender_id = u.id AND f.receiver_id = $1) OR
                 (f.receiver_id = u.id AND f.sender_id = $1)
-            WHERE u.fullname ILIKE $2 AND u.id != $1 AND f.status = 'accepted'
+            WHERE u.fullname ILIKE $2 AND u.id != $1 AND f.friend_status = 'accepted'
             ORDER BY u.fullname;
         `;
 

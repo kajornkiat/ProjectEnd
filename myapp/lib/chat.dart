@@ -256,7 +256,22 @@ class _ChatPageState extends State<ChatPage> {
                                               'assets/images/default_profile.png')
                                           as ImageProvider,
                                 ),
-                                title: Text(user['fullname'] ?? 'Unknown'),
+                                title: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal:
+                                          16.0), // เพิ่มระยะห่างด้านซ้ายและขวา
+                                  child: Text(
+                                    user['fullname'] ?? 'Unknown User',
+                                    maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                                    overflow: TextOverflow
+                                        .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                                    style: TextStyle(
+                                      fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                      fontWeight: FontWeight
+                                          .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                                    ),
+                                  ),
+                                ),
                                 onTap: () {
                                   print(
                                       "📢 Attempting to open chat with: ${user['id']} (${user['fullname']})"); // Debug Log

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'views_admin.dart';
+import 'views.dart';
 import 'dart:async';
 
 class SelectPage extends StatefulWidget {
@@ -140,7 +140,7 @@ class _SelectState extends State<SelectPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ViewsAdminPage(
+                          builder: (context) => ViewsPage(
                             category: widget.category,
                             imageUrl: List<String>.from(place['images']),
                             name: place['name'],
@@ -154,6 +154,11 @@ class _SelectState extends State<SelectPage> {
                             longitude: place['longitude'] ??
                                 0.0, // เพิ่มข้อมูล longitude
                             place_id: place['id'],
+                            price: place['price'] ?? "ไม่ระบุ",
+                            phone: place['phone'] ??
+                                "", // เพิ่ม phone (ใช้ค่าเริ่มต้นหากไม่มี)
+                            placetyp: place['placetyp'] ??
+                                "", // เพิ่ม placetyp (ใช้ค่าเริ่มต้นหากไม่มี)
                             refreshCallback: () {
                               _refreshController
                                   .add(null); // ✅ อัปเดตค่าแบบเรียลไทม์

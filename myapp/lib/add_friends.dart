@@ -4,8 +4,6 @@ import 'dart:convert';
 
 import 'friendprofile.dart'; // ลิ้งค์ไปหน้าข้อมูลเพื่อน
 
-
-
 class AddFriendsPage extends StatefulWidget {
   final int currentUserId; // รับ userId ของผู้ใช้ที่ล็อกอิน
   final Function(int) onRequestCountChange; // 🔹 Callback function
@@ -54,8 +52,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
       return;
     }
 
-    final url =
-        Uri.parse("http://192.168.242.162:3000/api/users/search?fullname=$query");
+    final url = Uri.parse(
+        "http://192.168.242.162:3000/api/users/search?fullname=$query&currentUserId=${widget.currentUserId}"); // 🔹 ส่ง currentUserId
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -215,6 +213,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                         'http://192.168.242.162:3000${friend['profile_image']}',
                                     backgroundImageUrl:
                                         'http://192.168.242.162:3000${friend['background_image'] ?? ''}',
+                                    status: friend['status'] ?? 'user',
+                                    //friend_status: friend['friend_status']?? "",
                                   ),
                                 ),
                               );
@@ -236,7 +236,22 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                               ),
                               title: GestureDetector(
                                 onTap: navigateToFriendProfile,
-                                child: Text(friend['fullname']),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal:
+                                          16.0), // เพิ่มระยะห่างด้านซ้ายและขวา
+                                  child: Text(
+                                    friend['fullname'],
+                                    maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                                    overflow: TextOverflow
+                                        .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                                    style: TextStyle(
+                                      fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                      fontWeight: FontWeight
+                                          .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                                    ),
+                                  ),
+                                ),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -296,8 +311,10 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                             ),
                             title: Text(
                               user['fullname'],
-                              style: const TextStyle(
-                                  color: Color.fromARGB(255, 64, 61, 61)),
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow
+                                  .ellipsis, // Add ellipsis if text overflows
+                              maxLines: 1,
                             ),
                             onTap: () {
                               Navigator.push(
@@ -311,6 +328,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                         'http://192.168.242.162:3000${user['profile_image']}',
                                     backgroundImageUrl:
                                         'http://192.168.242.162:3000${user['background_image'] ?? ''}',
+                                    status: user['status'] ?? 'user',
+                                    //friend_status: user['friend_status']?? "",
                                   ),
                                 ),
                               );

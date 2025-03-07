@@ -13,6 +13,8 @@ class FriendProfilePage extends StatefulWidget {
   final String fullname;
   final String profileImageUrl;
   final String backgroundImageUrl;
+  final String status;
+  //final String friend_status;
 
   const FriendProfilePage({
     required this.userId,
@@ -20,6 +22,8 @@ class FriendProfilePage extends StatefulWidget {
     required this.fullname,
     required this.profileImageUrl,
     required this.backgroundImageUrl,
+    required this.status,
+    //required this.friend_status,
     super.key,
   });
 
@@ -91,19 +95,32 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
   Future<void> checkFriendStatus() async {
     try {
       final response = await http.get(Uri.parse(
-          'http://192.168.242.162:3000/api/friends/status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
+          'http://192.168.242.162:3000/api/friends/friend_status?user_id=${widget.currentUserId}&friend_id=${widget.userId}'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
+        // ตรวจสอบ userstatus จาก widget.status
+        final userStatus = widget.status; // 'user' หรือ 'admin'
+
+        // ตรวจสอบ friendstatus จาก API
+        final friendStatusFromAPI =
+            data['status']; // 'pending', 'accepted', หรือ 'not_friends'
+
+        // อัปเดต friendStatus ใน state
         setState(() {
-          friendStatus = data['status'];
+          friendStatus = friendStatusFromAPI;
         });
+
+        // แสดงผลลัพธ์ใน console (สำหรับ debugging)
+        print("User Status: $userStatus");
+        print("Friend Status: $friendStatusFromAPI");
       } else {
         throw Exception("Failed to load friend status");
       }
     } catch (e) {
       setState(() {
-        friendStatus = 'error';
+        friendStatus = 'error'; // แสดงข้อผิดพลาดหากเกิดปัญหา
       });
       print("Error checking friend status: $e");
     }
@@ -157,18 +174,70 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
   Widget buildFriendButton() {
     if (friendStatus == 'loading') {
-      return const CircularProgressIndicator();
+      return const CircularProgressIndicator(); // แสดง Loading
+    } else if (widget.status == 'admin') {
+      // ถ้าเป็น admin ให้แสดงไอคอนแชทโดยไม่ต้องกด "Add Friend"
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // แสดงสถานะ "Admin"
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 206, 206, 206),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle,
+                    color: Colors.blue), // ไอคอนสีฟ้า
+                const SizedBox(width: 5),
+                const Text(
+                  "Admin", // แสดงข้อความ "Admin"
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+
+          // ปุ่มแชท
+          IconButton(
+            icon: const Icon(Icons.chat, color: Colors.black),
+            onPressed: () {
+              String imageUrl = widget.profileImageUrl.isNotEmpty
+                  ? widget.profileImageUrl
+                  : 'http://192.168.242.162:3000/default_profile.png';
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatDetailPage(
+                    currentUserId: widget.currentUserId,
+                    friendId: widget.userId,
+                    name: widget.fullname,
+                    avatar: imageUrl,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      );
     } else if (friendStatus == 'pending') {
+      // ถ้า friendStatus เป็น pending
       return ElevatedButton(
         onPressed: null,
         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
         child: const Text("Pending"),
       );
     } else if (friendStatus == 'accepted') {
+      // ถ้า friendStatus เป็น accepted (เป็นเพื่อนแล้ว)
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 🔹 ปุ่ม "Friend"
+          // แสดงสถานะ "Friend"
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -189,7 +258,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
             ),
           ),
 
-          // 🔹 ไอคอนจุดไข่ปลา (เมนู)
+          // ไอคอนจุดไข่ปลา (เมนู)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.black),
             onSelected: (String choice) {
@@ -209,7 +278,7 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
             ],
           ),
 
-          // 🔹 ปุ่มแชท
+          // ปุ่มแชท
           IconButton(
             icon: const Icon(Icons.chat, color: Colors.black),
             onPressed: () {
@@ -233,19 +302,22 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
         ],
       );
     } else if (friendStatus == 'error') {
+      // แสดงข้อผิดพลาด
       return const Text("Error loading friend status",
           style: TextStyle(color: Colors.red));
     } else {
+      // ถ้า friendStatus เป็น not_friends (ยังไม่ได้เป็นเพื่อน)
       return ElevatedButton(
         onPressed: sendFriendRequest,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
-        child: const Text("Add Friend",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        child: const Text(
+          "Add Friend",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       );
     }
   }
@@ -283,7 +355,8 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.242.162:3000/api/posts?user_id=${widget.userId}'),
+        Uri.parse(
+            'http://192.168.242.162:3000/api/posts?user_id=${widget.userId}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -425,7 +498,17 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                                 'http://192.168.242.162:3000${comment['profile_image']}',
                               ),
                             ),
-                            title: Text(comment['fullname']),
+                            title: Text(
+                              comment['fullname'],
+                              maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                              overflow: TextOverflow
+                                  .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                              style: TextStyle(
+                                fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                fontWeight: FontWeight
+                                    .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                              ),
+                            ),
                             subtitle: Text(comment['comment']),
                             trailing: comment['user_id'] ==
                                     userId // ✅ แสดงจุดไข่ปลาเฉพาะคอมเมนต์ของตนเอง
@@ -512,11 +595,18 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
                       : AssetImage('assets/images/default_profile.png')
                           as ImageProvider,
                 ),
-                title: Text(post['fullname'],
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  post['fullname'] ??
+                      'Unknown User', // Fallback for null fullname
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  overflow:
+                      TextOverflow.ellipsis, // Add ellipsis if text overflows
+                  maxLines: 1, // Limit to one line
+                ),
               ),
               if (post['image'] != null)
-                Image.network('http://192.168.242.162:3000/posts/${post['image']}'),
+                Image.network(
+                    'http://192.168.242.162:3000/posts/${post['image']}'),
               Padding(
                 padding: EdgeInsets.all(8.0),
                 child: Column(
@@ -666,13 +756,17 @@ class _FriendProfilePageState extends State<FriendProfilePage> {
               ],
             ),
             const SizedBox(height: 65),
-            Text(
-              widget.fullname,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+            Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 50), // เว้นขอบซ้าย-ขวา 16px
+              child: Text(
+                widget.fullname,
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+
             const SizedBox(height: 10),
             buildFriendButton(),
             buildPosts(), // แสดงโพสต์ของผู้ใช้

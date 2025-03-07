@@ -17,6 +17,9 @@ class ViewsPage extends StatefulWidget {
   final double longitude;
   final double rating;
   final int reviewCount;
+  final String price; // เพิ่ม price
+  final String phone; // เพิ่ม phone
+  final String placetyp; // เพิ่ม placetyp
   final VoidCallback refreshCallback;
 
   ViewsPage({
@@ -30,6 +33,9 @@ class ViewsPage extends StatefulWidget {
     required this.longitude,
     required this.rating,
     required this.reviewCount,
+    required this.price, // เพิ่ม price
+    required this.phone, // เพิ่ม phone
+    required this.placetyp, // เพิ่ม placetyp
     required this.refreshCallback,
   });
 
@@ -384,16 +390,25 @@ class _ViewsPageState extends State<ViewsPage> {
                     children: [
                       Row(
                         children: [
+                          // Province (ป้องกันล้นจอ)
                           Expanded(
                             child: Text(
-                              widget.name,
-                              style: TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
+                              widget.province,
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.orange),
+                              overflow: TextOverflow
+                                  .ellipsis, // ตัดข้อความที่ยาวเกินด้วย ...
+                              maxLines: 2, // จำกัดให้แสดงเพียง 1 บรรทัด
                             ),
                           ),
+
+                          // ระยะห่างระหว่าง province กับ Reviews
+                          SizedBox(width: 16), // เพิ่มระยะห่าง
+
+                          // Reviews และ Show Map
                           Row(
                             children: [
+                              // Rating
                               Icon(Icons.star, color: Colors.yellow, size: 18),
                               SizedBox(width: 5),
                               Text(
@@ -403,6 +418,16 @@ class _ViewsPageState extends State<ViewsPage> {
                               SizedBox(width: 5),
                               Text("($reviewCount Reviews)",
                                   style: TextStyle(color: Colors.grey)),
+                              SizedBox(
+                                  width:
+                                      10), // ระยะห่างระหว่าง Reviews และ Show Map
+
+                              // Show Map
+                              IconButton(
+                                onPressed: _openMap,
+                                icon: Icon(Icons.map, color: Colors.orange),
+                                tooltip: "Show Map",
+                              ),
                             ],
                           ),
                         ],
@@ -410,20 +435,71 @@ class _ViewsPageState extends State<ViewsPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(widget.province,
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.blue)),
-                          TextButton(
-                            onPressed: _openMap,
-                            child: Text("Show map",
-                                style: TextStyle(
-                                    color: Colors.orange,
-                                    fontWeight: FontWeight.bold)),
+                          Expanded(
+                            child: Text(
+                              widget.name,
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  color: const Color.fromARGB(255, 0, 0, 0)),
+                              overflow: TextOverflow
+                                  .ellipsis, // ตัดข้อความที่ยาวเกินด้วย ...
+                              maxLines: 4, // จำกัดให้แสดงเพียง 1 บรรทัด
+                            ),
                           ),
                         ],
                       ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.description,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  color:
+                                      const Color.fromARGB(255, 135, 135, 135)),
+                              overflow: TextOverflow
+                                  .ellipsis, // ตัดข้อความที่ยาวเกินด้วย ...
+                              maxLines: 10, // จำกัดให้แสดงเพียง 1 บรรทัด
+                            ),
+                          ),
+                        ],
+                      ),
+                      // แสดงข้อมูล price, phone, และ placetyp
                       SizedBox(height: 10),
-                      Text(widget.description),
+                      Row(
+                        children: [
+                          Icon(Icons.attach_money,
+                              color: Colors.orange, size: 16),
+                          SizedBox(width: 5),
+                          Text(
+                            widget.price ?? "ไม่ระบุ",
+                            style: TextStyle(fontSize: 12, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(Icons.phone, color: Colors.orange, size: 16),
+                          SizedBox(width: 5),
+                          Text(
+                            widget.phone ?? "ไม่ระบุ",
+                            style: TextStyle(fontSize: 12, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(Icons.store, color: Colors.orange, size: 16),
+                          SizedBox(width: 5),
+                          Text(
+                            widget.placetyp ?? "ไม่ระบุ",
+                            style: TextStyle(fontSize: 12, color: Colors.green),
+                          ),
+                        ],
+                      ),
                       SizedBox(height: 10),
                       Divider(),
                       Text("Reviews",
@@ -446,7 +522,17 @@ class _ViewsPageState extends State<ViewsPage> {
                                       as ImageProvider,
                               backgroundColor: Colors.grey[300],
                             ),
-                            title: Text(review['username'] ?? 'Unknown User'),
+                            title: Text(
+                              review['fullname'],
+                              maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                              overflow: TextOverflow
+                                  .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                              style: TextStyle(
+                                fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                fontWeight: FontWeight
+                                    .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                              ),
+                            ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [

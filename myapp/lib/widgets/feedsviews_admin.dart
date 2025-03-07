@@ -107,7 +107,7 @@ class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
 
   void _initializeData() async {
     await getCurrentUserId(); // ✅ โหลด userId ก่อน
-    fetchPosts(); // ✅ โหลดโพสต์หลังจาก userId ถูกตั้งค่า
+    await _showProvinceSelectionPopup();
     initSocket();
 
     searchController.addListener(() {
@@ -152,6 +152,48 @@ class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
       }
     } catch (e) {
       print("Error: $e");
+    }
+  }
+
+  // ✅ ฟังก์ชันแสดง Popup เลือกจังหวัด
+  Future<void> _showProvinceSelectionPopup() async {
+    String? selectedProvince = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("คุณสนใจจังหวัดไหน"),
+          content: DropdownSearch<String>(
+            items: provinces,
+            popupProps: PopupProps.menu(showSearchBox: true),
+            dropdownDecoratorProps: DropDownDecoratorProps(
+              dropdownSearchDecoration: InputDecoration(
+                labelText: "เลือกจังหวัด",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            onChanged: (value) {
+              Navigator.pop(context, value); // ✅ ส่งค่าจังหวัดที่เลือกกลับ
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // ✅ ปิด Popup โดยไม่เลือกจังหวัด
+              },
+              child: Text("ยกเลิก"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedProvince != null) {
+      // ✅ อัปเดตช่องค้นหาและค้นหาโพสต์
+      searchController.text = selectedProvince;
+      fetchPosts(searchQuery: selectedProvince);
+    } else {
+      // ✅ หากผู้ใช้ไม่เลือกจังหวัด ให้โหลดข้อมูลโพสต์ทั้งหมด
+      fetchPosts();
     }
   }
 
@@ -471,7 +513,17 @@ class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
                                   'http://192.168.242.162:3000${comment['profile_image']}',
                                 ),
                               ),
-                              title: Text(comment['fullname']),
+                              title: Text(
+                                comment['fullname'],
+                                maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                                overflow: TextOverflow
+                                    .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                                style: TextStyle(
+                                  fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
+                                  fontWeight: FontWeight
+                                      .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                                ),
+                              ),
                               subtitle: Text(comment['comment']),
                               trailing: PopupMenuButton<String>(
                                 onSelected: (value) {
@@ -571,11 +623,11 @@ class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
         children: [
           // Box สำหรับโพสต์
           Padding(
-            padding: EdgeInsets.all(8.0),
+            padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
             child: GestureDetector(
               onTap: showCreatePostModal, // ✅ กดแล้วเปิด Popup
               child: Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(50),
@@ -635,9 +687,14 @@ class _FeedsviewsAdminPageState extends State<FeedsviewsAdminPage> {
                                               'assets/images/default_profile.png')
                                           as ImageProvider,
                                 ),
-                                title: Text(post['fullname'],
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
+                                title: Text(
+                                  post['fullname'] ??
+                                      'Unknown User', // Fallback for null fullname
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow
+                                      .ellipsis, // Add ellipsis if text overflows
+                                  maxLines: 1, // Limit to one line
+                                ),
                                 // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
                                 trailing: PopupMenuButton<String>(
                                   onSelected: (value) {
