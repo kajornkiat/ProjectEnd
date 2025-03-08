@@ -36,7 +36,6 @@ class _ProfilePageState extends State<ProfileAdminPage> {
   void initState() {
     super.initState();
     fetchImages(); // เรียกใช้ฟังก์ชันดึงข้อมูลเมื่อเริ่มต้น
-    fetchFriends(); // ดึงรายชื่อเพื่อน
     getCurrentUserId().then((_) {
       fetchPosts(); // เรียก fetchPosts หลังจาก userId ถูกตั้งค่า
     });
@@ -115,9 +114,14 @@ class _ProfilePageState extends State<ProfileAdminPage> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        profileImageUrl = 'http://192.168.242.162:3000${data['profile_image']}';
-        backgroundImageUrl =
-            'http://192.168.242.162:3000${data['background_image']}';
+        profileImageUrl =
+            data['profile_image'] != null && data['profile_image'].isNotEmpty
+                ? 'http://192.168.242.162:3000${data['profile_image']}'
+                : '';
+        backgroundImageUrl = data['background_image'] != null &&
+                data['background_image'].isNotEmpty
+            ? 'http://192.168.242.162:3000${data['background_image']}'
+            : '';
         userName = data['fullname'] ?? '';
       });
     } else {
@@ -341,37 +345,6 @@ class _ProfilePageState extends State<ProfileAdminPage> {
     );
   }
 
-  //ฟังก์ขันดึงรายชื่อเพื่อน
-  Future<void> fetchFriends() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-
-    final response = await http.get(
-      Uri.parse('http://192.168.242.162:3000/friends/${widget.userId}'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      setState(() {
-        friends = data
-            .map((friend) => {
-                  'id': friend['id'],
-                  'fullname': friend['fullname'],
-                  'profileImage':
-                      'http://192.168.242.162:3000${friend['profile_image']}',
-                  'backgroundImage':
-                      'http://192.168.242.162:3000${friend['background_image']}',
-                })
-            .toList();
-      });
-    } else {
-      print('Failed to load friends');
-    }
-  }
-
   // ดึง userId จาก SharedPreferences
   Future<void> getCurrentUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -569,9 +542,14 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                           final comment = postComments[postId]![index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'http://192.168.242.162:3000${comment['profile_image']}',
-                              ),
+                              backgroundImage: comment['profile_image'] !=
+                                          null &&
+                                      comment['profile_image'].isNotEmpty
+                                  ? NetworkImage(
+                                      'http://192.168.242.162:3000${comment['profile_image']}')
+                                  : AssetImage(
+                                          'assets/images/default_profile.png')
+                                      as ImageProvider,
                             ),
                             title: Text(
                               comment['fullname'],
@@ -670,8 +648,14 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                       : AssetImage('assets/images/default_profile.png')
                           as ImageProvider,
                 ),
-                title: Text(post['fullname'],
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  post['fullname'] ??
+                      'Unknown User', // Fallback for null fullname
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  overflow:
+                      TextOverflow.ellipsis, // Add ellipsis if text overflows
+                  maxLines: 1, // Limit to one line
+                ),
                 // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
                 trailing: post['user_id'] == userId
                     ? PopupMenuButton<String>(
@@ -812,7 +796,10 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                   height: 200,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: NetworkImage(backgroundImageUrl),
+                      image: backgroundImageUrl.isNotEmpty
+                          ? NetworkImage(backgroundImageUrl)
+                          : AssetImage('assets/images/default_background.png')
+                              as ImageProvider,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -823,7 +810,10 @@ class _ProfilePageState extends State<ProfileAdminPage> {
                   left: MediaQuery.of(context).size.width / 2 - 80,
                   child: CircleAvatar(
                     radius: 80,
-                    backgroundImage: NetworkImage(profileImageUrl),
+                    backgroundImage: profileImageUrl.isNotEmpty
+                        ? NetworkImage(profileImageUrl)
+                        : AssetImage('assets/images/default_profile.png')
+                            as ImageProvider,
                   ),
                 ),
                 // Logout Icon
@@ -865,11 +855,14 @@ class _ProfilePageState extends State<ProfileAdminPage> {
               ],
             ),
             const SizedBox(height: 65), // ปรับขนาดให้เว้นระยะห่างด้านบน
-            Text(
-              userName,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
+            Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 50), // เว้นขอบซ้าย-ขวา 16px
+              child: Text(
+                userName,
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 20), // ✅ เพิ่มระยะห่างก่อนแสดงเพื่อน

@@ -53,6 +53,26 @@ class _ViewsPageState extends State<ViewsPage> {
   int _currentPage = 0;
   List<String> _imageUrls = [];
   final PageController _pageController = PageController(initialPage: 0);
+  bool _isExpanded = false;
+
+  bool _needsExpansion(String text) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: 16,
+          color: const Color.fromARGB(255, 135, 135, 135),
+        ),
+      ),
+      maxLines: 5,
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout(
+        maxWidth: MediaQuery.of(context).size.width -
+            32); // 32 คือ padding ทั้งสองด้าน
+    return textPainter.didExceedMaxLines;
+  }
 
   @override
   void initState() {
@@ -448,22 +468,49 @@ class _ViewsPageState extends State<ViewsPage> {
                           ),
                         ],
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isExpanded = !_isExpanded; // สลับสถานะการขยาย
+                          });
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
                               widget.description,
                               style: TextStyle(
-                                  fontSize: 16,
-                                  color:
-                                      const Color.fromARGB(255, 135, 135, 135)),
-                              overflow: TextOverflow
-                                  .ellipsis, // ตัดข้อความที่ยาวเกินด้วย ...
-                              maxLines: 10, // จำกัดให้แสดงเพียง 1 บรรทัด
+                                fontSize: 16,
+                                color: const Color.fromARGB(255, 135, 135, 135),
+                              ),
+                              maxLines: _isExpanded ? null : 5, // จำกัดบรรทัด
+                              overflow: _isExpanded
+                                  ? TextOverflow.visible
+                                  : TextOverflow
+                                      .ellipsis, // แสดง ... เมื่อถูกตัด
                             ),
-                          ),
-                        ],
+                            if (!_isExpanded &&
+                                _needsExpansion(widget
+                                    .description)) // แสดงปุ่ม "เพิ่มเติม" เมื่อข้อความถูกตัด
+                              Text(
+                                'เพิ่มเติม...',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            if (_isExpanded) // แสดงปุ่ม "แสดงน้อยลง" เมื่อข้อความถูกขยาย
+                              Text(
+                                'แสดงน้อยลง',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                       // แสดงข้อมูล price, phone, และ placetyp
                       SizedBox(height: 10),
@@ -518,7 +565,8 @@ class _ViewsPageState extends State<ViewsPage> {
                               backgroundImage: review['profile_image'] != null
                                   ? NetworkImage(
                                       'http://192.168.242.162:3000${review['profile_image']}')
-                                  : AssetImage('assets/default_profile.png')
+                                  : AssetImage(
+                                          'assets/images/default_profile.png')
                                       as ImageProvider,
                               backgroundColor: Colors.grey[300],
                             ),

@@ -258,12 +258,12 @@ class _ControlUsersPageState extends State<ControlUsersPage> {
                                                             'profile_image'] !=
                                                         null
                                                     ? 'http://192.168.242.162:3000${user['profile_image']}'
-                                                    : 'assets/images/default_profile.png',
+                                                    : '',
                                                 backgroundImageUrl: user[
                                                             'background_image'] !=
                                                         null
                                                     ? 'http://192.168.242.162:3000${user['background_image']}'
-                                                    : 'assets/images/default_bg.jpg',
+                                                    : '',
                                                 status: user['status'],
                                               ),
                                             ),
@@ -297,12 +297,12 @@ class _ControlUsersPageState extends State<ControlUsersPage> {
                                                             'profile_image'] !=
                                                         null
                                                     ? 'http://192.168.242.162:3000${user['profile_image']}'
-                                                    : 'assets/images/default_profile.png',
+                                                    : '',
                                                 backgroundImageUrl: user[
                                                             'background_image'] !=
                                                         null
                                                     ? 'http://192.168.242.162:3000${user['background_image']}'
-                                                    : 'assets/images/default_bg.jpg',
+                                                    : '',
                                                 status: user['status'],
                                               ),
                                             ),

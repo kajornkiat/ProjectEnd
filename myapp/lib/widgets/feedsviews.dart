@@ -30,6 +30,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
   File? _image;
   final ImagePicker _picker = ImagePicker();
   int? userId; // เก็บ user_id ที่ดึงมาจาก SharedPreferences
+  String currentUserProfileImage = '';
 
   List<String> provinces = [
     "Bangkok(กรุงเทพมหานคร)",
@@ -107,6 +108,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
 
   void _initializeData() async {
     await getCurrentUserId(); // ✅ โหลด userId ก่อน
+    await fetchCurrentUserProfileImage();
     await _showProvinceSelectionPopup();
     initSocket();
 
@@ -130,6 +132,30 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     socket.off('delete_comment');
     commentControllers.forEach((_, controller) => controller.dispose());
     super.dispose();
+  }
+
+  // เพิ่มฟังก์ชันสำหรับดึงรูปโปรไฟล์ของผู้ใช้ที่ login
+  Future<void> fetchCurrentUserProfileImage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('http://192.168.242.162:3000/profile/$userId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        currentUserProfileImage = data['profile_image'] != null
+            ? 'http://192.168.242.162:3000${data['profile_image']}'
+            : '';
+      });
+    } else {
+      print('Failed to load current user profile image');
+    }
   }
 
   Future<void> fetchPosts({String? searchQuery}) async {
@@ -509,9 +535,14 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                           final comment = postComments[postId]![index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'http://192.168.242.162:3000${comment['profile_image']}',
-                              ),
+                              backgroundImage: comment['profile_image'] !=
+                                          null &&
+                                      comment['profile_image'].isNotEmpty
+                                  ? NetworkImage(
+                                      'http://192.168.242.162:3000${comment['profile_image']}')
+                                  : AssetImage(
+                                          'assets/images/default_profile.png')
+                                      as ImageProvider,
                             ),
                             title: Text(
                               comment['fullname'] ??
@@ -758,16 +789,13 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                                       children: [
                                         // รูปโปรไฟล์แสดงทางซ้าย
                                         CircleAvatar(
-                                          backgroundImage: post[
-                                                          'profile_image'] !=
-                                                      null &&
-                                                  post['profile_image']
-                                                      .isNotEmpty
+                                          backgroundImage: currentUserProfileImage
+                                                  .isNotEmpty
                                               ? NetworkImage(
-                                                  'http://192.168.242.162:3000${post['profile_image']}')
+                                                  currentUserProfileImage) // หากมีรูปจาก URL
                                               : AssetImage(
                                                       'assets/images/default_profile.png')
-                                                  as ImageProvider,
+                                                  as ImageProvider, // หากไม่มีรูป
                                           radius: 15,
                                         ),
                                         SizedBox(width: 8),

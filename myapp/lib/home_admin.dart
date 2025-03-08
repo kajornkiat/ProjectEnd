@@ -20,7 +20,7 @@ class HomeAdminPage extends StatefulWidget {
 
 class _HomeAdminPageState extends State<HomeAdminPage> {
   int _currentIndex = 0;
-  String profileImageUrl = 'assets/images/9669.jpg';
+  String profileImageUrl = '';
   Map<String, dynamic>? userData;
   int friendRequestsCount = 0; // จำนวนคำขอเป็นเพื่อน
   final PageController _pageController = PageController();
@@ -141,26 +141,25 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
         },
         items: [
           BottomNavigationBarItem(
-            icon: ClipOval(
-              child: Image.asset(
-                'assets/images/home.png',
-                width: 25,
-                height: 25,
-                fit: BoxFit.cover,
+            icon: Center(
+              // ใช้ Center เพื่อจัดตำแหน่งไอคอนให้อยู่กึ่งกลาง
+              child: Icon(
+                Icons.home, // ใช้ไอคอน home จาก Material Icons
+                color: Color.fromARGB(
+                    255, 158, 154, 91), // สีครีม (สีสามารถปรับได้ตามต้องการ)
+                size: 30, // ปรับขนาดไอคอนตามต้องการ
               ),
             ),
-            label: '',
+            label: '', // ไม่แสดงข้อความ
           ),
           BottomNavigationBarItem(
             icon: Stack(
               children: [
-                ClipOval(
-                  child: Image.asset(
-                    'assets/images/add_friends.png',
-                    width: 25,
-                    height: 25,
-                    fit: BoxFit.cover,
-                  ),
+                Icon(
+                  Icons.person_add, // ใช้ไอคอน person_add จาก Material Icons
+                  color: Color.fromARGB(
+                      255, 158, 154, 91), // สีครีม (สีสามารถปรับได้ตามต้องการ)
+                  size: 30, // ปรับขนาดไอคอนตามต้องการ
                 ),
                 if (friendRequestsCount > 0) // 🔹 แสดง Badge ถ้ามีคำขอ
                   Positioned(
@@ -187,15 +186,16 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
             label: "Add Friends",
           ),
           BottomNavigationBarItem(
-            icon: ClipOval(
-              child: Image.asset(
-                'assets/images/chat.png',
-                width: 25,
-                height: 25,
-                fit: BoxFit.cover,
+            icon: Center(
+              // ใช้ Center เพื่อจัดตำแหน่งไอคอนให้อยู่กึ่งกลาง
+              child: Icon(
+                Icons.chat_bubble_outline, // ใช้ไอคอน home จาก Material Icons
+                color: Color.fromARGB(
+                    255, 158, 154, 91), // สีครีม (สีสามารถปรับได้ตามต้องการ)
+                size: 30, // ปรับขนาดไอคอนตามต้องการ
               ),
             ),
-            label: '',
+            label: '', // ไม่แสดงข้อความ
           ),
           BottomNavigationBarItem(
             icon: ClipOval(
@@ -206,19 +206,18 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                       height: 30,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return Image.asset(
-                          'assets/images/9669.jpg',
-                          width: 30,
-                          height: 30,
-                          fit: BoxFit.cover,
+                        // หากโหลดรูปไม่สำเร็จ ให้แสดงไอคอน person
+                        return Icon(
+                          Icons.person,
+                          size: 30,
+                          color: Color.fromARGB(255, 158, 154, 91),
                         );
                       },
                     )
-                  : Image.asset(
-                      profileImageUrl,
-                      width: 30,
-                      height: 30,
-                      fit: BoxFit.cover,
+                  : Icon(
+                      Icons.person, // ใช้ไอคอน person จาก Material Icons
+                      size: 30, // ปรับขนาดไอคอนตามต้องการ
+                      color: Color.fromARGB(255, 158, 154, 91), // สีไอคอน
                     ),
             ),
             label: '',

@@ -115,9 +115,14 @@ class _ProfilePageState extends State<ProfilePage> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        profileImageUrl = 'http://192.168.242.162:3000${data['profile_image']}';
-        backgroundImageUrl =
-            'http://192.168.242.162:3000${data['background_image']}';
+        profileImageUrl =
+            data['profile_image'] != null && data['profile_image'].isNotEmpty
+                ? 'http://192.168.242.162:3000${data['profile_image']}'
+                : '';
+        backgroundImageUrl = data['background_image'] != null &&
+                data['background_image'].isNotEmpty
+            ? 'http://192.168.242.162:3000${data['background_image']}'
+            : '';
         userName = data['fullname'] ?? '';
       });
     } else {
@@ -367,10 +372,14 @@ class _ProfilePageState extends State<ProfilePage> {
               .map((friend) => {
                     'id': friend['id'] ?? 0,
                     'fullname': friend['fullname'] ?? 'Unknown',
-                    'profileImage':
-                        'http://192.168.242.162:3000${friend['profile_image'] ?? ''}',
-                    'backgroundImage':
-                        'http://192.168.242.162:3000${friend['background_image'] ?? ''}',
+                    'profileImage': friend['profile_image'] != null &&
+                            friend['profile_image'].isNotEmpty
+                        ? 'http://192.168.242.162:3000${friend['profile_image']}'
+                        : '',
+                    'backgroundImage': friend['background_image'] != null &&
+                            friend['background_image'].isNotEmpty
+                        ? 'http://192.168.242.162:3000${friend['background_image']}'
+                        : '',
                     'status': friend['status'] ?? 'user',
                   })
               .toList();
@@ -424,7 +433,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 35,
-                    backgroundImage: NetworkImage(friend['profileImage']),
+                    backgroundImage: friend['profileImage'] != null &&
+                            friend['profileImage'].isNotEmpty
+                        ? NetworkImage(friend['profileImage'])
+                        : AssetImage('assets/images/default_profile.png')
+                            as ImageProvider,
                   ),
                   const SizedBox(height: 5),
                   SizedBox(
@@ -643,11 +656,21 @@ class _ProfilePageState extends State<ProfilePage> {
                           final comment = postComments[postId]![index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'http://192.168.242.162:3000${comment['profile_image']}',
-                              ),
+                              backgroundImage: comment['profile_image'] != null
+                                  ? NetworkImage(
+                                      'http://192.168.242.162:3000${comment['profile_image']}')
+                                  : AssetImage(
+                                          'assets/images/default_profile.png')
+                                      as ImageProvider,
                             ),
-                            title: Text(comment['fullname']),
+                            title: Text(
+                              comment['fullname'] ??
+                                  'Unknown User', // Fallback for null fullname
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow
+                                  .ellipsis, // Add ellipsis if text overflows
+                              maxLines: 1, // Limit to one line
+                            ),
                             subtitle: Text(comment['comment']),
                             trailing: comment['user_id'] ==
                                     userId // ✅ แสดงจุดไข่ปลาเฉพาะคอมเมนต์ของตนเอง
@@ -882,7 +905,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   height: 200,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: NetworkImage(backgroundImageUrl),
+                      image: backgroundImageUrl.isNotEmpty
+                          ? NetworkImage(backgroundImageUrl)
+                          : AssetImage('assets/images/default_background.png')
+                              as ImageProvider,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -893,7 +919,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   left: MediaQuery.of(context).size.width / 2 - 80,
                   child: CircleAvatar(
                     radius: 80,
-                    backgroundImage: NetworkImage(profileImageUrl),
+                    backgroundImage: profileImageUrl.isNotEmpty
+                        ? NetworkImage(profileImageUrl)
+                        : AssetImage('assets/images/default_profile.png')
+                            as ImageProvider,
                   ),
                 ),
                 // Logout Icon

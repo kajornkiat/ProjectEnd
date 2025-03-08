@@ -209,12 +209,19 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                     userId: friend['id'],
                                     currentUserId: widget.currentUserId,
                                     fullname: friend['fullname'],
-                                    profileImageUrl:
-                                        'http://192.168.242.162:3000${friend['profile_image']}',
-                                    backgroundImageUrl:
-                                        'http://192.168.242.162:3000${friend['background_image'] ?? ''}',
+                                    profileImageUrl: friend['profile_image'] !=
+                                                null &&
+                                            friend['profile_image'].isNotEmpty
+                                        ? 'http://192.168.242.162:3000${friend['profile_image']}'
+                                        : '',
+                                    backgroundImageUrl: friend[
+                                                    'background_image'] !=
+                                                null &&
+                                            friend['background_image']
+                                                .isNotEmpty
+                                        ? 'http://192.168.242.162:3000${friend['background_image']}'
+                                        : '',
                                     status: friend['status'] ?? 'user',
-                                    //friend_status: friend['friend_status']?? "",
                                   ),
                                 ),
                               );
@@ -324,10 +331,17 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                     userId: user['id'],
                                     currentUserId: widget.currentUserId,
                                     fullname: user['fullname'],
-                                    profileImageUrl:
-                                        'http://192.168.242.162:3000${user['profile_image']}',
-                                    backgroundImageUrl:
-                                        'http://192.168.242.162:3000${user['background_image'] ?? ''}',
+                                    profileImageUrl: user['profile_image'] !=
+                                                null &&
+                                            user['profile_image'].isNotEmpty
+                                        ? 'http://192.168.242.162:3000${user['profile_image']}'
+                                        : '',
+                                    backgroundImageUrl: user[
+                                                    'background_image'] !=
+                                                null &&
+                                            user['background_image'].isNotEmpty
+                                        ? 'http://192.168.242.162:3000${user['background_image']}'
+                                        : '',
                                     status: user['status'] ?? 'user',
                                     //friend_status: user['friend_status']?? "",
                                   ),

@@ -36,6 +36,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Map<int, List<Map<String, dynamic>>> postComments = {};
   TextEditingController postController = TextEditingController();
   int? userId; // เก็บ user_id ที่ดึงมาจาก SharedPreferences
+  String currentUserProfileImage = '';
 
   @override
   void initState() {
@@ -89,6 +90,30 @@ class _UserProfilePageState extends State<UserProfilePage> {
     super.dispose();
   }
 
+  // เพิ่มฟังก์ชันสำหรับดึงรูปโปรไฟล์ของผู้ใช้ที่ login
+  Future<void> fetchCurrentUserProfileImage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('http://192.168.242.162:3000/profile/${widget.currentUserId}'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        currentUserProfileImage = data['profile_image'] != null
+            ? 'http://192.168.242.162:3000${data['profile_image']}'
+            : 'assets/images/default_profile.png';
+      });
+    } else {
+      print('Failed to load current user profile image');
+    }
+  }
+
   Widget buildFriendButton() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -122,7 +147,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           onPressed: () {
             String imageUrl = widget.profileImageUrl.isNotEmpty
                 ? widget.profileImageUrl
-                : 'http://192.168.242.162:3000/default_profile.png';
+                : '';
 
             Navigator.push(
               context,
@@ -313,10 +338,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           final comment = postComments[postId]![index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'http://192.168.242.162:3000${comment['profile_image']}',
-                              ),
+                              backgroundImage: comment['profile_image'] !=
+                                          null &&
+                                      comment['profile_image'].isNotEmpty
+                                  ? NetworkImage(
+                                      'http://192.168.242.162:3000${comment['profile_image']}')
+                                  : AssetImage(
+                                          'assets/images/default_profile.png')
+                                      as ImageProvider,
                             ),
+
                             title: Text(
                               comment['fullname'],
                               maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
@@ -453,10 +484,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   children: [
                     // รูปโปรไฟล์แสดงทางซ้าย
                     CircleAvatar(
-                      backgroundImage: post['profile_image'] != null &&
-                              post['profile_image'].isNotEmpty
-                          ? NetworkImage(
-                              'http://192.168.242.162:3000${post['profile_image']}')
+                      backgroundImage: currentUserProfileImage.isNotEmpty
+                          ? NetworkImage(currentUserProfileImage)
                           : AssetImage('assets/images/default_profile.png')
                               as ImageProvider,
                       radius: 15,
@@ -545,7 +574,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             fit: BoxFit.cover,
                           )
                         : const DecorationImage(
-                            image: AssetImage('assets/images/default_bg.jpg'),
+                            image: AssetImage('assets/images/default_background.png'),
                             fit: BoxFit.cover,
                           ),
                   ),
