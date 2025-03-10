@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'control_users.dart';
-import 'chat.dart';
+import 'chat_admin.dart';
 import 'profile_admin.dart';
 import 'widgets/tourist_admin.dart';
 import 'widgets/hotel_admin.dart';
@@ -41,7 +41,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           });
         },
       ),
-      ChatPage(currentUserId: widget.userId),
+      ChatAdminPage(currentUserId: widget.userId),
       ProfileAdminPage(userId: widget.userId),
     ];
   }
@@ -50,23 +50,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   void initState() {
     super.initState();
     fetchUserProfile();
-    fetchFriendRequestsCount();
-  }
-
-  Future<void> fetchFriendRequestsCount() async {
-    try {
-      final response = await http.get(Uri.parse(
-          'http://192.168.242.162:3000/api/friends/requests?receiver_id=${widget.userId}'));
-
-      if (response.statusCode == 200) {
-        List<dynamic> requests = json.decode(response.body);
-        setState(() {
-          friendRequestsCount = requests.length;
-        });
-      }
-    } catch (e) {
-      print("Error fetching friend requests: $e");
-    }
   }
 
   Future<void> fetchUserProfile() async {

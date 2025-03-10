@@ -126,15 +126,8 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
         children: [
           // 🔹 พื้นหลังเป็นรูปภาพ
           Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: const AssetImage("assets/images/signup.png"),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Colors.white.withOpacity(0.2),
-                  BlendMode.srcOver,
-                ),
-              ),
+            decoration: const BoxDecoration(
+             color: Color.fromARGB(9, 233, 173, 53), // ✅ สีครีมอ่อน
             ),
           ),
           Column(
@@ -186,7 +179,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color.fromARGB(255, 86, 85, 85),
                       ),
                     ),
                   ),
@@ -246,7 +239,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal:
-                                          16.0), // เพิ่มระยะห่างด้านซ้ายและขวา
+                                          0.0), // เพิ่มระยะห่างด้านซ้ายและขวา
                                   child: Text(
                                     friend['fullname'],
                                     maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
@@ -283,7 +276,7 @@ class _AddFriendsPageState extends State<AddFriendsPage> {
                       : const Center(
                           child: Text(
                             "ไม่มีคำขอเป็นเพื่อน",
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(color: Color.fromARGB(255, 86, 85, 85)),
                           ),
                         ),
                 ),

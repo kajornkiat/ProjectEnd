@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:myapp/friendprofile.dart';
+import 'package:myapp/profile.dart';
 
 late IO.Socket socket;
 
@@ -27,10 +29,26 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
   TextEditingController searchController = TextEditingController();
   String? selectedProvince;
   TextEditingController descriptionController = TextEditingController();
-  File? _image;
+  List<File> _images = [];
   final ImagePicker _picker = ImagePicker();
   int? userId; // เก็บ user_id ที่ดึงมาจาก SharedPreferences
   String currentUserProfileImage = '';
+  Map<int, bool> _isExpandedMap = {};
+
+  // ฟังก์ชันตรวจสอบว่าข้อความจำเป็นต้องขยายหรือไม่
+  bool _needsExpansion(String text, BuildContext context) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: 16),
+      ),
+      maxLines: 5,
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout(maxWidth: MediaQuery.of(context).size.width - 32);
+    return textPainter.didExceedMaxLines;
+  }
 
   List<String> provinces = [
     "Bangkok(กรุงเทพมหานคร)",
@@ -223,11 +241,11 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     }
   }
 
-  Future<void> pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+  Future<void> pickImages() async {
+    final pickedFiles = await _picker.pickMultiImage(); // เลือกหลายรูป
+    if (pickedFiles != null) {
       setState(() {
-        _image = File(pickedFile.path);
+        _images.addAll(pickedFiles.map((file) => File(file.path)));
       });
     }
   }
@@ -260,9 +278,9 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     request.fields['province'] = selectedProvince!;
     request.fields['description'] = descriptionController.text;
 
-    if (_image != null) {
+    for (var image in _images) {
       request.files.add(
-        await http.MultipartFile.fromPath('image', _image!.path),
+        await http.MultipartFile.fromPath('images', image.path),
       );
     }
 
@@ -271,9 +289,9 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     if (response.statusCode == 201) {
       // ✅ เคลียร์ข้อมูลหลังจากโพสต์สำเร็จ
       setState(() {
-        descriptionController.clear();
-        _image = null;
-        selectedProvince = null;
+        descriptionController.clear(); // ลบข้อความในช่อง description
+        _images.clear(); // ลบรูปภาพที่เลือก
+        selectedProvince = null; // รีเซ็ตจังหวัดที่เลือก
       });
 
       Navigator.pop(context); // ปิด Popup หลังจากโพสต์สำเร็จ
@@ -380,11 +398,9 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                     maxLines: 3,
                   ),
                   SizedBox(height: 10),
-                  _image != null
-                      ? Image.file(_image!, height: 100)
-                      : Text("No image selected"),
+                  _buildImagePreview(), // แสดงรูปภาพที่เลือก
                   ElevatedButton(
-                    onPressed: pickImage,
+                    onPressed: pickImages,
                     child: Text("Pick Image"),
                   ),
                   SizedBox(height: 10),
@@ -411,7 +427,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
         "user_id": widget.userData["id"],
         "province": "General",
         "description": postController.text,
-        "image": null,
+        "images": null,
       }),
     );
 
@@ -534,23 +550,66 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                         itemBuilder: (context, index) {
                           final comment = postComments[postId]![index];
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: comment['profile_image'] !=
-                                          null &&
-                                      comment['profile_image'].isNotEmpty
-                                  ? NetworkImage(
-                                      'http://192.168.242.162:3000${comment['profile_image']}')
-                                  : AssetImage(
-                                          'assets/images/default_profile.png')
-                                      as ImageProvider,
+                            leading: GestureDetector(
+                              onTap: () {
+                                navigateToProfileOrFriendProfile(
+                                  comment['user_id'],
+                                  comment['fullname'] ?? 'Unknown User',
+                                  comment['profile_image'] != null
+                                      ? 'http://192.168.242.162:3000${comment['profile_image']}'
+                                      : '',
+                                  comment['background_image'] != null
+                                      ? 'http://192.168.242.162:3000${comment['background_image']}'
+                                      : '',
+                                  comment['status'], // ใส่ status หากมี
+                                );
+                              },
+                              child: CircleAvatar(
+                                backgroundImage: comment['profile_image'] !=
+                                        null
+                                    ? NetworkImage(
+                                        'http://192.168.242.162:3000${comment['profile_image']}')
+                                    : AssetImage(
+                                            'assets/images/default_profile.png')
+                                        as ImageProvider,
+                              ),
                             ),
-                            title: Text(
-                              comment['fullname'] ??
-                                  'Unknown User', // Fallback for null fullname
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                              overflow: TextOverflow
-                                  .ellipsis, // Add ellipsis if text overflows
-                              maxLines: 1, // Limit to one line
+                            title: GestureDetector(
+                              onTap: () {
+                                navigateToProfileOrFriendProfile(
+                                  comment['user_id'],
+                                  comment['fullname'] ?? 'Unknown User',
+                                  comment['profile_image'] != null
+                                      ? 'http://192.168.242.162:3000${comment['profile_image']}'
+                                      : '',
+                                  comment['background_image'] != null
+                                      ? 'http://192.168.242.162:3000${comment['background_image']}'
+                                      : '',
+                                  comment['status'],
+                                );
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    comment['fullname'] ?? 'Unknown User',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  // ✅ เพิ่ม Text เพื่อแสดงวันที่
+                                  if (comment['date'] != null)
+                                    Text(
+                                      _formatDate(
+                                          comment['date']), // จัดรูปแบบวันที่
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                             subtitle: Text(comment['comment']),
                             trailing: comment['user_id'] ==
@@ -612,6 +671,112 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
     );
   }
 
+  void navigateToProfileOrFriendProfile(int postUserId, String fullname,
+      String profileImageUrl, String backgroundImageUrl, String status) {
+    if (postUserId == userId) {
+      // ถ้าเป็นผู้ใช้ที่ล็อกอินอยู่ ให้ไปหน้า profile.dart
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(userId: userId!),
+        ),
+      );
+    } else {
+      // ถ้าไม่ใช่ผู้ใช้ที่ล็อกอินอยู่ ให้ไปหน้า friendprofile.dart
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FriendProfilePage(
+            userId: postUserId,
+            currentUserId: userId!,
+            fullname: fullname,
+            profileImageUrl: profileImageUrl,
+            backgroundImageUrl: backgroundImageUrl,
+            status: status,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildPostImages(List<String> images) {
+    return images.isEmpty
+        ? SizedBox.shrink()
+        : SizedBox(
+            height: 260,
+            child: PageView.builder(
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                return AspectRatio(
+                  aspectRatio: 1, // อัตราส่วน 1:1 (ปรับตามต้องการ)
+                  child: Image.network(
+                    'http://192.168.242.162:3000/posts/${images[index]}',
+                    fit: BoxFit.cover, // ปรับขนาดรูปให้พอดีกับกรอบ
+                  ),
+                );
+              },
+            ),
+          );
+  }
+
+  Widget _buildImagePreview() {
+    return _images.isEmpty
+        ? Text("No images selected")
+        : SizedBox(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _images.length,
+              itemBuilder: (context, index) {
+                return Stack(
+                  children: [
+                    Image.file(_images[index], height: 100, width: 100),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.white, // สีไอคอนเป็นขาว
+                          size: 20, // ปรับขนาดไอคอนให้เล็กลง
+                          shadows: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5), // สีเงา
+                              offset: Offset(2, 2), // ตำแหน่งเงา (x, y)
+                              blurRadius: 1, // ความเบลอของเงา
+                            ),
+                          ],
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _images.removeAt(index); // ลบรูปภาพ
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      // แปลง string เป็น DateTime object
+      DateTime dateTime = DateTime.parse(dateString);
+
+      // จัดรูปแบบวันที่ให้อ่านง่ายขึ้น
+      String formattedDate =
+          "${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}";
+
+      return formattedDate;
+    } catch (e) {
+      print("Error formatting date: $e");
+      return dateString; // หากไม่สามารถจัดรูปแบบได้ ให้คืนค่าเดิม
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (userId == null) {
@@ -619,6 +784,7 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
           child: CircularProgressIndicator()); // 🔥 รอให้ userId โหลดเสร็จก่อน
     }
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 239, 238, 229),
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
@@ -656,42 +822,6 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
       ),
       body: Column(
         children: [
-          // Box สำหรับโพสต์
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-            child: GestureDetector(
-              onTap: showCreatePostModal, // ✅ กดแล้วเปิด Popup
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [BoxShadow(color: Colors.grey, blurRadius: 3)],
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: widget.userData['profile_image'] != null
-                          ? NetworkImage(
-                              'http://192.168.242.162:3000${widget.userData['profile_image']}')
-                          : AssetImage('assets/images/default_profile.png')
-                              as ImageProvider,
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text("Create Post",
-                          style: TextStyle(color: Colors.grey)),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.add, color: Colors.blue),
-                      onPressed: showCreatePostModal, // ✅ กดแล้วเปิด Popup
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
           // รายการโพสต์
           Expanded(
             child: posts.isEmpty
@@ -700,6 +830,11 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                     itemCount: posts.length,
                     itemBuilder: (context, index) {
                       var post = posts[index];
+                      final postId = post['post_id'];
+                      final description = post['description'] ?? '';
+
+                      // กำหนดค่าเริ่มต้นสำหรับ _isExpandedMap หากยังไม่มี
+                      _isExpandedMap[postId] ??= false;
 
                       // ✅ ตรวจสอบค่าที่ได้จาก API
                       print(
@@ -710,25 +845,70 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                             EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15)),
+                        color: const Color.fromARGB(255, 255, 255, 255),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: post['profile_image'] != null
-                                    ? NetworkImage(
-                                        'http://192.168.242.162:3000${post['profile_image']}')
-                                    : AssetImage(
-                                            'assets/images/default_profile.png')
-                                        as ImageProvider,
+                              leading: GestureDetector(
+                                onTap: () {
+                                  navigateToProfileOrFriendProfile(
+                                    post['user_id'],
+                                    post['fullname'] ?? 'Unknown User',
+                                    post['profile_image'] != null
+                                        ? 'http://192.168.242.162:3000${post['profile_image']}'
+                                        : '',
+                                    post['background_image'] != null
+                                        ? 'http://192.168.242.162:3000${post['background_image']}'
+                                        : '',
+                                    post['status'], // ใส่ status หากมี
+                                  );
+                                },
+                                child: CircleAvatar(
+                                  backgroundImage: post['profile_image'] != null
+                                      ? NetworkImage(
+                                          'http://192.168.242.162:3000${post['profile_image']}')
+                                      : AssetImage(
+                                              'assets/images/default_profile.png')
+                                          as ImageProvider,
+                                ),
                               ),
-                              title: Text(
-                                post['fullname'] ??
-                                    'Unknown User', // Fallback for null fullname
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                                overflow: TextOverflow
-                                    .ellipsis, // Add ellipsis if text overflows
-                                maxLines: 1, // Limit to one line
+                              title: GestureDetector(
+                                onTap: () {
+                                  navigateToProfileOrFriendProfile(
+                                    post['user_id'],
+                                    post['fullname'] ?? 'Unknown User',
+                                    post['profile_image'] != null
+                                        ? 'http://192.168.242.162:3000${post['profile_image']}'
+                                        : '',
+                                    post['background_image'] != null
+                                        ? 'http://192.168.242.162:3000${post['background_image']}'
+                                        : '',
+                                    post['status'], // ใส่ status หากมี
+                                  );
+                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      post['fullname'] ?? 'Unknown User',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    // ✅ เพิ่ม Text เพื่อแสดงวันที่
+                                    if (post['date'] != null)
+                                      Text(
+                                        _formatDate(
+                                            post['date']), // จัดรูปแบบวันที่
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                               // ✅ ซ่อนปุ่ม "ไข่ปลา" ถ้า post['user_id'] ไม่ตรงกับ userId ของผู้ใช้ปัจจุบัน
                               trailing: post['user_id'] == userId
@@ -752,28 +932,88 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                                     )
                                   : null, // 🔹 ซ่อนปุ่ม
                             ),
-                            if (post['image'] != null)
-                              Image.network(
-                                  'http://192.168.242.162:3000/posts/${post['image']}'),
+                            if (post['images'] != null &&
+                                post['images'].isNotEmpty)
+                              _buildPostImages(post['images'].cast<
+                                  String>()), // แปลง List<dynamic> เป็น List<String>
                             Padding(
                               padding: EdgeInsets.all(8.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    post['province'] ??
-                                        'Unknown Province', // ✅ แสดง province
-                                    style: TextStyle(
-                                      fontSize: 16, // ✅ เท่ากับ description
-                                      fontWeight: FontWeight.bold, // ✅ ตัวหนา
-                                      color: Colors.blue, // ✅ สีฟ้า
-                                    ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on,
+                                        color:
+                                            Color.fromARGB(255, 248, 30, 26),
+                                        size: 15,
+                                      ),
+                                      SizedBox(width: 5),
+                                      Text(
+                                        post['province'] ??
+                                            'Unknown Province', // ✅ แสดง province
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color:
+                                              Color.fromARGB(255, 26, 141, 248),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   SizedBox(height: 5), // ✅ เว้นระยะห่าง
-                                  Text(
-                                    post['description'] ?? '',
-                                    style: TextStyle(
-                                        fontSize: 16), // ✅ เท่ากับ province
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _isExpandedMap[postId] =
+                                            !_isExpandedMap[postId]!;
+                                      });
+                                    },
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          description,
+                                          style: TextStyle(
+                                            fontSize: 16, // ปรับขนาดฟอนต์
+                                            color: const Color.fromARGB(255, 87,
+                                                87, 87), // ปรับสีข้อความ
+                                            height:
+                                                1.5, // ปรับความสูงระหว่างบรรทัด
+                                          ),
+                                          maxLines: _isExpandedMap[postId]!
+                                              ? null
+                                              : 3,
+                                          overflow: _isExpandedMap[postId]!
+                                              ? TextOverflow.visible
+                                              : TextOverflow.ellipsis,
+                                        ),
+                                        if (!_isExpandedMap[postId]! &&
+                                            _needsExpansion(
+                                                description, context))
+                                          Text(
+                                            'เพิ่มเติม...',
+                                            style: TextStyle(
+                                              color: const Color.fromARGB(
+                                                  255, 115, 178, 230),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        if (_isExpandedMap[postId]!)
+                                          Text(
+                                            'แสดงน้อยลง',
+                                            style: TextStyle(
+                                              color: const Color.fromARGB(
+                                                  255, 115, 178, 230),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -874,6 +1114,12 @@ class _FeedsviewsPageState extends State<FeedsviewsPage> {
                   ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: showCreatePostModal, // เปิด Modal สร้างโพสต์
+        child: Icon(Icons.add, color: Colors.white),
+        backgroundColor: Colors.blue, // สีพื้นหลังของปุ่ม
+        elevation: 5, // เงาของปุ่ม
       ),
     );
   }

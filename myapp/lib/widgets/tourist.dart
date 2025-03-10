@@ -22,19 +22,24 @@ class Tourist extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/2.png'),
+              image: AssetImage('assets/images/tourist.png'),
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
             ),
             borderRadius: BorderRadius.circular(30),
           ),
-          child: Center(
+          child: Container(
+            alignment: Alignment.center, // ✅ จัดข้อความให้อยู่ตรงกลาง
+            padding:
+                EdgeInsets.symmetric(horizontal: 10), // ✅ ป้องกันขอบชิดเกินไป
             child: Text(
-              'Tourist',
+              'Tourist\nAttraction', // ✅ ทำให้ขึ้นบรรทัดใหม่
+              textAlign: TextAlign.center, // ✅ จัดข้อความให้อยู่กึ่งกลางแนวนอน
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 45, // ✅ ลดขนาดให้อ่านง่ายขึ้น
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 9, 239, 209),
+                color: Colors.white,
+                height: 1.3, // ✅ ปรับระยะห่างระหว่างบรรทัด
               ),
             ),
           ),

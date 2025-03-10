@@ -122,76 +122,48 @@ class _AddSelectPageState extends State<AddSelectPage> {
 
   Future<void> _pickImages() async {
     final pickedFiles = await _picker.pickMultiImage();
-    if (pickedFiles != null && pickedFiles.length <= 5) {
+    if (pickedFiles != null) {
       setState(() {
-        _images = pickedFiles.map((file) => File(file.path)).toList();
+        _images.addAll(pickedFiles.map((file) => File(file.path)).toList());
       });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("อัปโหลดได้สูงสุด 5 รูปเท่านั้น")));
     }
   }
 
   Future<void> _submitForm() async {
-    provinceController.text = selectedProvince ?? '';
     if (_formKey.currentState!.validate()) {
       // ตรวจสอบว่าฟิลด์ที่จำเป็นไม่เป็นค่าว่าง
-      if (provinceController.text.isEmpty ||
-          nameController.text.isEmpty ||
+      if (nameController.text.isEmpty ||
           latitudeController.text.isEmpty ||
           longitudeController.text.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบถ้วน")));
-        return;
-      }
-
-      // ตรวจสอบว่าฟิลด์ dropdown ถูกเลือกหรือไม่
-      if (selectedProvince == null ||
-          selectedPrice == null ||
-          selectedtype == null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("กรุณาเลือกจังหวัด, ประเภทสถานที่, และเรทราคา")));
+            content: Text("กรุณากรอกชื่อสถานที่, ละติจูด, และลองจิจูด")));
         return;
       }
 
-      // ตรวจสอบว่า latitude และ longitude เป็นตัวเลข
-      try {
-        double.parse(latitudeController.text);
-        double.parse(longitudeController.text);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("กรุณากรอกละติจูดและลองจิจูดเป็นตัวเลข")));
-        return;
-      }
-
-      // ส่งข้อมูลไปยังเซิร์ฟเวอร์
+      // ส่งคำขอ
       var uri = Uri.parse('http://192.168.242.162:3000/api/${widget.category}');
       var request = http.MultipartRequest(
-        widget.placeId == null
-            ? 'POST'
-            : 'PUT', // ใช้ POST สำหรับเพิ่ม, PUT สำหรับแก้ไข
+        widget.placeId == null ? 'POST' : 'PUT',
         uri,
       );
 
-      request.fields['province'] = provinceController.text;
+      // เพิ่มฟิลด์ที่จำเป็น
+      request.fields['province'] = selectedProvince ?? '';
       request.fields['name'] = nameController.text;
+      request.fields['latitude'] = latitudeController.text;
+      request.fields['longitude'] = longitudeController.text;
       request.fields['description'] = descriptionController.text;
-      request.fields['latitude'] =
-          double.parse(latitudeController.text).toString();
-      request.fields['longitude'] =
-          double.parse(longitudeController.text).toString();
       request.fields['phone'] = phoneController.text;
       request.fields['price'] = selectedPrice ?? "";
       request.fields['placetyp'] = selectedtype ?? "";
 
-      // หากเป็นการแก้ไขข้อมูล ส่ง place_id ไปด้วย
+      // เพิ่ม place_id เมื่ออยู่ในโหมดแก้ไขข้อมูล
       if (widget.placeId != null) {
         request.fields['place_id'] = widget.placeId.toString();
       }
 
-      // เพิ่มรูปภาพ (หากมี)
+      // เพิ่มรูปภาพ
       for (var image in _images) {
-        print('Image path: ${image.path}');
         request.files
             .add(await http.MultipartFile.fromPath('images', image.path));
       }
@@ -204,11 +176,45 @@ class _AddSelectPageState extends State<AddSelectPage> {
         Navigator.pop(context);
       } else {
         var responseBody = await response.stream.bytesToString();
-        print('Error response: $responseBody'); // แสดงข้อผิดพลาดจากเซิร์ฟเวอร์
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("เกิดข้อผิดพลาดในการเพิ่มข้อมูล")));
+            SnackBar(content: Text("เกิดข้อผิดพลาด: $responseBody")));
       }
     }
+  }
+
+  Future<List<String>> _fetchImages(int placeId) async {
+    final response = await http.get(Uri.parse(
+        'http://192.168.242.162:3000/api/${widget.category}/$placeId'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<String>.from(data['images']);
+    } else {
+      throw Exception('Failed to load images');
+    }
+  }
+
+  Future<void> _deleteImage(int placeId, String imageUrl) async {
+    final response = await http.delete(
+      Uri.parse(
+          'http://192.168.242.162:3000/api/${widget.category}/$placeId/images'),
+      body: jsonEncode({'imageUrl': imageUrl}),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('ลบรูปเรียบร้อย')));
+      setState(() {}); // รีเฟรช UI
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการลบรูป')));
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _images.removeAt(index); // ลบรูปที่ index ที่ระบุ
+    });
   }
 
   @override
@@ -249,17 +255,117 @@ class _AddSelectPageState extends State<AddSelectPage> {
                   setState(() => selectedPrice = value);
                 }),
                 SizedBox(height: 10),
-                Text("อัปโหลดรูป (สูงสุด 5 รูป)",
-                    style: TextStyle(fontSize: 16)),
+                Text("อัปโหลดรูป", style: TextStyle(fontSize: 16)),
                 ElevatedButton(onPressed: _pickImages, child: Text("เลือกภาพ")),
                 Wrap(
-                  children: _images
-                      .map((image) => Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: Image.file(image,
-                                width: 80, height: 80, fit: BoxFit.cover),
-                          ))
-                      .toList(),
+                  children: [
+                    // แสดงรูปจาก API (ถ้ามี)
+                    if (widget.placeId != null)
+                      FutureBuilder<List<String>>(
+                        future: _fetchImages(widget.placeId!),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return CircularProgressIndicator();
+                          } else if (snapshot.hasError) {
+                            return Text('เกิดข้อผิดพลาด: ${snapshot.error}');
+                          } else if (!snapshot.hasData ||
+                              snapshot.data!.isEmpty) {
+                            return SizedBox.shrink(); // ไม่แสดงอะไรถ้าไม่มีรูป
+                          } else {
+                            return Wrap(
+                              children: snapshot.data!.map((imageUrl) {
+                                return Stack(
+                                  children: [
+                                    Image.network(
+                                      'http://192.168.242.162:3000$imageUrl',
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        child: IconButton(
+                                          icon: Icon(
+                                            Icons.close,
+                                            color:
+                                                Colors.white, // สีไอคอนเป็นขาว
+                                            size: 20, // ปรับขนาดไอคอนให้เล็กลง
+                                            shadows: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withOpacity(0.5), // สีเงา
+                                                offset: Offset(
+                                                    2, 2), // ตำแหน่งเงา (x, y)
+                                                blurRadius: 1, // ความเบลอของเงา
+                                              ),
+                                            ],
+                                          ),
+                                          padding: EdgeInsets
+                                              .zero, // ลบ padding ของ IconButton
+                                          constraints:
+                                              BoxConstraints(), // ลบ constraints เพื่อให้ขนาดเล็กลง
+                                          onPressed: () => _deleteImage(
+                                              widget.placeId!, imageUrl),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            );
+                          }
+                        },
+                      ),
+                    // แสดงรูปที่ยังไม่ได้บันทึก
+                    ..._images.asMap().entries.map((entry) {
+                      int index = entry.key; // ดึง index ของรูป
+                      File image = entry.value; // ดึงไฟล์รูป
+                      return Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Stack(
+                          children: [
+                            Image.file(
+                              image,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Colors.white, // สีไอคอนเป็นขาว
+                                    size: 20, // ปรับขนาดไอคอนให้เล็กลง
+                                    shadows: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withOpacity(0.5), // สีเงา
+                                        offset:
+                                            Offset(2, 2), // ตำแหน่งเงา (x, y)
+                                        blurRadius: 1, // ความเบลอของเงา
+                                      ),
+                                    ],
+                                  ),
+                                  padding: EdgeInsets
+                                      .zero, // ลบ padding ของ IconButton
+                                  constraints:
+                                      BoxConstraints(), // ลบ constraints เพื่อให้ขนาดเล็กลง
+                                  onPressed: () => _removeImage(
+                                      index), // ลบรูปที่ index ที่ระบุ
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(

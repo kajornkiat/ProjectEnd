@@ -24,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? userData;
   int friendRequestsCount = 0; // จำนวนคำขอเป็นเพื่อน
   final PageController _pageController = PageController();
+  int unreadMessagesCount = 0; // จำนวนข้อความที่ยังไม่ได้อ่าน
 
   List<Widget> get _pages {
     if (userData == null) {
@@ -41,7 +42,13 @@ class _HomePageState extends State<HomePage> {
           });
         },
       ),
-      ChatPage(currentUserId: widget.userId),
+      ChatPage(
+        currentUserId: widget.userId,
+        onMarkAsRead: (friendId) {
+          // อัปเดตจำนวนข้อความที่ยังไม่ได้อ่าน
+          fetchUnreadMessagesCount();
+        },
+      ),
       ProfilePage(userId: widget.userId),
     ];
   }
@@ -51,6 +58,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     fetchUserProfile();
     fetchFriendRequestsCount();
+    fetchUnreadMessagesCount();
   }
 
   Future<void> fetchFriendRequestsCount() async {
@@ -66,6 +74,24 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       print("Error fetching friend requests: $e");
+    }
+  }
+
+  Future<void> fetchUnreadMessagesCount() async {
+    try {
+      final response = await http.get(Uri.parse(
+          'http://192.168.242.162:3000/api/chat/unreadCount?userId=${widget.userId}'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          unreadMessagesCount = data['unread_count'] ?? 0;
+        });
+      } else {
+        print("Failed to fetch unread messages count: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error fetching unread messages count: $e");
     }
   }
 
@@ -110,10 +136,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           Container(
             decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/signup.png'),
-                fit: BoxFit.cover,
-              ),
+              color: Color.fromARGB(9, 233, 173, 53), // ✅ สีครีมอ่อน
             ),
           ),
           PageView(
@@ -186,16 +209,37 @@ class _HomePageState extends State<HomePage> {
             label: "Add Friends",
           ),
           BottomNavigationBarItem(
-            icon: Center(
-              // ใช้ Center เพื่อจัดตำแหน่งไอคอนให้อยู่กึ่งกลาง
-              child: Icon(
-                Icons.chat_bubble_outline, // ใช้ไอคอน home จาก Material Icons
-                color: Color.fromARGB(
-                    255, 158, 154, 91), // สีครีม (สีสามารถปรับได้ตามต้องการ)
-                size: 30, // ปรับขนาดไอคอนตามต้องการ
-              ),
+            icon: Stack(
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  color: Color.fromARGB(255, 158, 154, 91),
+                  size: 30,
+                ),
+                if (unreadMessagesCount >
+                    0) // แสดง Badge ถ้ามีข้อความที่ยังไม่ได้อ่าน
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$unreadMessagesCount',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            label: '', // ไม่แสดงข้อความ
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: ClipOval(

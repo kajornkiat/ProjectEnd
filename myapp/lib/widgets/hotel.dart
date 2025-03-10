@@ -22,7 +22,7 @@ class Hotel extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/2.png'),
+              image: AssetImage('assets/images/hotel.png'),
               fit: BoxFit.cover,
               alignment: Alignment.center,
             ),
@@ -32,9 +32,9 @@ class Hotel extends StatelessWidget {
             child: Text(
               'Hotel',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 80,
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 9, 239, 209),
+                color: Color.fromARGB(255, 255, 255, 255),
               ),
             ),
           ),

@@ -261,8 +261,8 @@ const foodStorage = multer.diskStorage({
 
 const foodUpload = multer({ storage: foodStorage });
 
-// ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุด 5 รูป
-app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
+// ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุดไม่จำกัด
+app.post('/api/food', foodUpload.array('images'), async (req, res) => {
     const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
@@ -284,7 +284,7 @@ app.post('/api/food', foodUpload.array('images', 5), async (req, res) => {
     }
 });
 
-app.put('/api/food', foodUpload.array('images', 5), async (req, res) => {
+app.put('/api/food', foodUpload.array('images'), async (req, res) => {
     const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!place_id) {
@@ -300,9 +300,10 @@ app.put('/api/food', foodUpload.array('images', 5), async (req, res) => {
 
         let imagePaths = existingFood.rows[0].images || []; // ดึงรูปที่มีอยู่
 
-        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้เพิ่มรูปใหม่เข้าไปใน array
         if (req.files.length > 0) {
-            imagePaths = req.files.map(file => `/foodimage/${file.filename}`);
+            const newImages = req.files.map(file => `/foodimage/${file.filename}`);
+            imagePaths = [...imagePaths, ...newImages]; // รวมรูปเดิมและรูปใหม่
         }
 
         // อัปเดตข้อมูลในฐานข้อมูล
@@ -411,19 +412,81 @@ app.delete('/api/food/:id', async (req, res) => {
     }
 });
 
+app.get('/api/food/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM food WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Food not found.' });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/food/:id/images', async (req, res) => {
+    const { id } = req.params;
+    const { imageUrl } = req.body; // URL ของรูปที่ต้องการลบ
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existingFood = await pool.query('SELECT images FROM food WHERE id = $1', [id]);
+        if (existingFood.rows.length === 0) {
+            return res.status(404).json({ error: 'Food not found.' });
+        }
+
+        // ลบรูปที่ระบุออกจาก array
+        const updatedImages = existingFood.rows[0].images.filter(img => img !== imageUrl);
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE food SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Image deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/food/:id/images', foodUpload.array('images'), async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existingFood = await pool.query('SELECT images FROM food WHERE id = $1', [id]);
+        if (existingFood.rows.length === 0) {
+            return res.status(404).json({ error: 'Food not found.' });
+        }
+
+        // เพิ่มรูปใหม่เข้าไปใน array
+        const newImages = req.files.map(file => `/foodimage/${file.filename}`);
+        const updatedImages = [...existingFood.rows[0].images, ...newImages];
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE food SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Images added successfully.', images: updatedImages });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.use('/foodimage', express.static(path.join(__dirname, 'foodimage')));
 
 //hotel
 const hotelStorage = multer.diskStorage({
     destination: path.join(__dirname, 'hotelimage'), // Save files to hotelimage folder
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1000) + path.extname(file.originalname));
     },
 });
 
 const hotelUpload = multer({ storage: hotelStorage });
 
-app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
+// ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุดไม่จำกัด
+app.post('/api/hotel', hotelUpload.array('images'), async (req, res) => {
     const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
@@ -445,7 +508,7 @@ app.post('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
     }
 });
 
-app.put('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
+app.put('/api/hotel', hotelUpload.array('images'), async (req, res) => {
     const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!place_id) {
@@ -461,9 +524,10 @@ app.put('/api/hotel', hotelUpload.array('images', 5), async (req, res) => {
 
         let imagePaths = existinghotel.rows[0].images || []; // ดึงรูปที่มีอยู่
 
-        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้เพิ่มรูปใหม่เข้าไปใน array
         if (req.files.length > 0) {
-            imagePaths = req.files.map(file => `/hotelimage/${file.filename}`);
+            const newImages = req.files.map(file => `/hotelimage/${file.filename}`);
+            imagePaths = [...imagePaths, ...newImages]; // รวมรูปเดิมและรูปใหม่
         }
 
         // อัปเดตข้อมูลในฐานข้อมูล
@@ -572,19 +636,81 @@ app.delete('/api/hotel/:id', async (req, res) => {
     }
 });
 
+app.get('/api/hotel/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM hotel WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'hotel not found.' });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/hotel/:id/images', async (req, res) => {
+    const { id } = req.params;
+    const { imageUrl } = req.body; // URL ของรูปที่ต้องการลบ
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existinghotel = await pool.query('SELECT images FROM hotel WHERE id = $1', [id]);
+        if (existinghotel.rows.length === 0) {
+            return res.status(404).json({ error: 'hotel not found.' });
+        }
+
+        // ลบรูปที่ระบุออกจาก array
+        const updatedImages = existinghotel.rows[0].images.filter(img => img !== imageUrl);
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE hotel SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Image deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/hotel/:id/images', hotelUpload.array('images'), async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existinghotel = await pool.query('SELECT images FROM hotel WHERE id = $1', [id]);
+        if (existinghotel.rows.length === 0) {
+            return res.status(404).json({ error: 'hotel not found.' });
+        }
+
+        // เพิ่มรูปใหม่เข้าไปใน array
+        const newImages = req.files.map(file => `/hotelimage/${file.filename}`);
+        const updatedImages = [...existinghotel.rows[0].images, ...newImages];
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE hotel SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Images added successfully.', images: updatedImages });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.use('/hotelimage', express.static(path.join(__dirname, 'hotelimage')));
 
 //tourist
 const touristStorage = multer.diskStorage({
     destination: path.join(__dirname, 'touristimage'), // Save files to touristimage folder
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1000) + path.extname(file.originalname));
     },
 });
 
 const touristUpload = multer({ storage: touristStorage });
 
-app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
+// ✅ อัปเดตให้รองรับการอัปโหลดรูปสูงสุดไม่จำกัด
+app.post('/api/tourist', touristUpload.array('images'), async (req, res) => {
     const { province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!province || !name || !latitude || !longitude) {
@@ -606,7 +732,7 @@ app.post('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
     }
 });
 
-app.put('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
+app.put('/api/tourist', touristUpload.array('images'), async (req, res) => {
     const { place_id, province, name, description, latitude, longitude, price, phone, placetyp } = req.body;
 
     if (!place_id) {
@@ -622,9 +748,10 @@ app.put('/api/tourist', touristUpload.array('images', 5), async (req, res) => {
 
         let imagePaths = existingtourist.rows[0].images || []; // ดึงรูปที่มีอยู่
 
-        // ถ้ามีการอัปโหลดรูปใหม่ ให้ใช้รูปใหม่แทน
+        // ถ้ามีการอัปโหลดรูปใหม่ ให้เพิ่มรูปใหม่เข้าไปใน array
         if (req.files.length > 0) {
-            imagePaths = req.files.map(file => `/touristimage/${file.filename}`);
+            const newImages = req.files.map(file => `/touristimage/${file.filename}`);
+            imagePaths = [...imagePaths, ...newImages]; // รวมรูปเดิมและรูปใหม่
         }
 
         // อัปเดตข้อมูลในฐานข้อมูล
@@ -733,6 +860,67 @@ app.delete('/api/tourist/:id', async (req, res) => {
     }
 });
 
+app.get('/api/tourist/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM tourist WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'tourist not found.' });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/tourist/:id/images', async (req, res) => {
+    const { id } = req.params;
+    const { imageUrl } = req.body; // URL ของรูปที่ต้องการลบ
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existingtourist = await pool.query('SELECT images FROM tourist WHERE id = $1', [id]);
+        if (existingtourist.rows.length === 0) {
+            return res.status(404).json({ error: 'tourist not found.' });
+        }
+
+        // ลบรูปที่ระบุออกจาก array
+        const updatedImages = existingtourist.rows[0].images.filter(img => img !== imageUrl);
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE tourist SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Image deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/tourist/:id/images', touristUpload.array('images'), async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // ดึงข้อมูลรูปปัจจุบัน
+        const existingtourist = await pool.query('SELECT images FROM tourist WHERE id = $1', [id]);
+        if (existingtourist.rows.length === 0) {
+            return res.status(404).json({ error: 'tourist not found.' });
+        }
+
+        // เพิ่มรูปใหม่เข้าไปใน array
+        const newImages = req.files.map(file => `/touristimage/${file.filename}`);
+        const updatedImages = [...existingtourist.rows[0].images, ...newImages];
+
+        // อัปเดตตาราง
+        await pool.query('UPDATE tourist SET images = $1 WHERE id = $2', [updatedImages, id]);
+
+        res.status(200).json({ message: 'Images added successfully.', images: updatedImages });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.use('/touristimage', express.static(path.join(__dirname, 'touristimage')));
 
 //post/feeds
@@ -750,22 +938,24 @@ const poststorage = multer.diskStorage({
     },
 });
 
-const postupload = multer({ storage: poststorage });
+const postupload = multer({ storage: poststorage }).array('images'); // อนุญาตให้อัปโหลดได้สูงสุด ไม่จำกัด รูป
 
 app.use('/posts', express.static(path.join(__dirname, 'posts')));
 
 // POST: เพิ่มข้อมูลลงในตาราง post พร้อมเชื่อมโยง user_id จาก token
-app.post('/api/posts', authenticateToken, postupload.single('image'), async (req, res) => {
-    const user_id = req.user.id; // ดึง id จาก token ที่ถอดรหัสแล้ว
+app.post('/api/posts', authenticateToken, postupload, async (req, res) => {
+    const user_id = req.user.id;
     const { province, description } = req.body;
-    const image = req.file ? req.file.filename : null;
+    const images = req.files ? req.files.map(file => file.filename) : []; // เก็บชื่อไฟล์รูปภาพเป็นอาร์เรย์
 
     try {
+        // เพิ่มข้อมูลโพสต์ลงในตาราง post
         const result = await pool.query(
-            `INSERT INTO post (user_id, province, description, image, date) 
+            `INSERT INTO post (user_id, province, description, images, date) 
             VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-            [user_id, province, description, image]
+            [user_id, province, description, images]
         );
+
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error(err);
@@ -776,39 +966,38 @@ app.post('/api/posts', authenticateToken, postupload.single('image'), async (req
 // GET: ดึงข้อมูลทั้งหมดจากตาราง post
 app.get('/api/posts', async (req, res) => {
     try {
-        const { province, user_id } = req.query; // เพิ่ม user_id ใน query parameter
+        const { province, user_id } = req.query;
         let query = `
-      SELECT 
-          post.post_id, 
-          post.user_id, 
-          post.province, 
-          post.description, 
-          post.image, 
-          post.date,
-          users.fullname, 
-          users.profile_image,
-          COALESCE(COUNT(comment.comment_id), 0)::INTEGER AS comment_count  -- ✅ แปลงให้เป็น Integer
-      FROM post
-      JOIN users ON post.user_id = users.id
-      LEFT JOIN comment ON post.post_id = comment.post_id  -- ✅ เชื่อมกับตารางคอมเมนต์
-    `;
+            SELECT 
+                post.post_id, 
+                post.user_id, 
+                post.province, 
+                post.description, 
+                post.images, -- ดึงคอลัมน์ images
+                post.date,
+                users.fullname, 
+                users.profile_image,
+                users.status,
+                users.background_image,
+                COALESCE(COUNT(comment.comment_id), 0)::INTEGER AS comment_count
+            FROM post
+            JOIN users ON post.user_id = users.id
+            LEFT JOIN comment ON post.post_id = comment.post_id
+        `;
 
         let values = [];
         let conditions = [];
 
-        // กรองด้วย province (ถ้ามี)
         if (province) {
             conditions.push(`LOWER(post.province) LIKE $${values.length + 1}`);
             values.push(`%${province.toLowerCase()}%`);
         }
 
-        // กรองด้วย user_id (ถ้ามี)
         if (user_id) {
             conditions.push(`post.user_id = $${values.length + 1}`);
             values.push(user_id);
         }
 
-        // เพิ่มเงื่อนไข WHERE ถ้ามีเงื่อนไข
         if (conditions.length > 0) {
             query += ` WHERE ${conditions.join(' AND ')}`;
         }
@@ -908,7 +1097,7 @@ app.get('/api/comments/:post_id', async (req, res) => {
         const { post_id } = req.params;
         const comments = await pool.query(
             `SELECT c.comment_id, c.comment, c.date, 
-                    u.id AS user_id, u.fullname, u.profile_image 
+                    u.id AS user_id, u.fullname, u.profile_image, u.background_image, u.status
              FROM comment c
              JOIN users u ON c.user_comment_id = u.id
              WHERE c.post_id = $1
@@ -1023,7 +1212,7 @@ app.get('/api/reviews/:category/:place_id', async (req, res) => {
 
         // ✅ ดึงรีวิวทั้งหมด
         const reviewsQuery = await pool.query(
-            `SELECT r.*, u.fullname, u.profile_image 
+            `SELECT r.*, u.fullname, u.profile_image, u.background_image, u.status
              FROM reviews r 
              JOIN users u ON r.user_id = u.id 
              WHERE r.category = $1 AND r.place_id = $2 
@@ -1421,20 +1610,26 @@ app.get('/api/chat/history', async (req, res) => {
 
     const query = `
     SELECT DISTINCT ON (LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id)) 
-        u.id AS friend_id, 
-        COALESCE(u.fullname, 'Unknown') AS fullname, 
-        COALESCE(u.profile_image, '') AS profile_image, 
-        m.message, 
-        m.created_at
-    FROM messages m
-    JOIN users u ON u.id = CASE 
-        WHEN m.sender_id = $1 THEN m.receiver_id 
-        ELSE m.sender_id 
-    END
-    WHERE m.sender_id = $1 OR m.receiver_id = $1
-    ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
+    u.id AS friend_id, 
+    COALESCE(u.fullname, 'Unknown') AS fullname, 
+    COALESCE(u.profile_image, '') AS profile_image, 
+    m.message, 
+    m.created_at,
+    EXISTS (
+        SELECT 1 
+        FROM messages m2 
+        WHERE m2.receiver_id = $1 
+          AND m2.sender_id = u.id 
+          AND m2.is_unread = true
+    ) AS is_unread
+FROM messages m
+JOIN users u ON u.id = CASE 
+    WHEN m.sender_id = $1 THEN m.receiver_id 
+    ELSE m.sender_id 
+END
+WHERE (m.sender_id = $1 OR m.receiver_id = $1)
+ORDER BY LEAST(m.sender_id, m.receiver_id), GREATEST(m.sender_id, m.receiver_id), m.created_at DESC;
     `;
-
 
     try {
         const result = await pool.query(query, [userId]);
@@ -1451,7 +1646,7 @@ app.get('/api/chat/messages', async (req, res) => {
     const { sender_id, receiver_id } = req.query;
 
     const query = `
-    SELECT id, sender_id, receiver_id, message, message_type, created_at 
+    SELECT id, sender_id, receiver_id, message, message_type, created_at, is_unread 
     FROM messages 
     WHERE (sender_id = $1 AND receiver_id = $2) 
        OR (sender_id = $2 AND receiver_id = $1) 
@@ -1463,6 +1658,43 @@ app.get('/api/chat/messages', async (req, res) => {
         res.status(200).json(result.rows);
     } catch (error) {
         console.error("Error fetching chat messages:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+app.post('/api/chat/markAsRead', async (req, res) => {
+    const { user_id, friend_id } = req.body;
+
+    const query = `
+    UPDATE messages
+    SET is_unread = false
+    WHERE sender_id = $1 AND receiver_id = $2 AND is_unread = true;
+    `;
+
+    try {
+        await pool.query(query, [friend_id, user_id]);
+        res.status(200).json({ success: true, message: "Messages marked as read" });
+    } catch (error) {
+        console.error("Error marking messages as read:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// API ดึงจำนวนข้อความที่ยังไม่ได้อ่าน
+app.get('/api/chat/unreadCount', async (req, res) => {
+    const { userId } = req.query;
+
+    try {
+        const query = `
+        SELECT COUNT(*) AS unread_count
+        FROM messages
+        WHERE receiver_id = $1 AND is_unread = true;
+      `;
+
+        const result = await pool.query(query, [userId]);
+        res.status(200).json({ unread_count: result.rows[0].unread_count });
+    } catch (error) {
+        console.error("Error fetching unread messages count:", error);
         res.status(500).json({ error: "Server error" });
     }
 });

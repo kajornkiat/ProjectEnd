@@ -22,20 +22,24 @@ class Feeds extends StatelessWidget {
           height: 150,
           width: double.infinity,
           decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/9669.jpg'),
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-            ),
+            color: const Color.fromARGB(255, 236, 184, 28), // ✅ พื้นหลังสีเหลืองแทนรูปภาพ
             borderRadius: BorderRadius.circular(30),
+            //border: Border.all(color: Colors.blue, width: 3), // ✅ ขอบสีน้ำเงิน
           ),
           child: Center(
             child: Text(
               'Feeds',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 80,
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 9, 239, 209),
+                color: Colors.white, // ✅ เปลี่ยนเป็นสีขาว
+                shadows: [
+                  Shadow(
+                    offset: Offset(2, 2), // ✅ ทำให้เหมือนขอบสีดำ
+                    blurRadius: 2,
+                    color: Colors.black,
+                  ),
+                ],
               ),
             ),
           ),

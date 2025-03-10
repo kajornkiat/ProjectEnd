@@ -110,77 +110,80 @@ class _SelectState extends State<SelectPage> {
           ),
         ),
       ),
-      body: filteredPlaces.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: GridView.builder(
-                itemCount: filteredPlaces.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.7,
-                ),
-                itemBuilder: (context, index) {
-                  final place = filteredPlaces[index];
-                  final List<dynamic> images = place['images'] ?? [];
-                  final String imageUrl = images.isNotEmpty
-                      ? 'http://192.168.242.162:3000${images[0]}' // เลือกภาพแรกในอาร์เรย์
-                      : 'https://via.placeholder.com/150';
+      body: Container(
+        color: Color.fromARGB(255, 248, 248, 245), // ✅ กำหนดสีพื้นหลังเป็นฟ้า
+        child: filteredPlaces.isEmpty
+            ? Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: GridView.builder(
+                  itemCount: filteredPlaces.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.7,
+                  ),
+                  itemBuilder: (context, index) {
+                    final place = filteredPlaces[index];
+                    final List<dynamic> images = place['images'] ?? [];
+                    final String imageUrl = images.isNotEmpty
+                        ? 'http://192.168.242.162:3000${images[0]}' // เลือกภาพแรกในอาร์เรย์
+                        : 'https://via.placeholder.com/150';
 
-                  // ✅ แยกตัวแปรออกมาก่อน
-                  final dynamic ratingData = place['averageRating'];
-                  final double rating =
-                      ratingData is num ? ratingData.toDouble() : 0.0;
-                  final int reviewCount = (place['reviewCount'] as int?) ?? 0;
+                    // ✅ แยกตัวแปรออกมาก่อน
+                    final dynamic ratingData = place['averageRating'];
+                    final double rating =
+                        ratingData is num ? ratingData.toDouble() : 0.0;
+                    final int reviewCount = (place['reviewCount'] as int?) ?? 0;
 
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ViewsPage(
-                            category: widget.category,
-                            imageUrl: List<String>.from(place['images']),
-                            name: place['name'],
-                            rating: rating, // ✅ ใช้ค่าที่ประกาศไว้
-                            reviewCount: reviewCount, // ✅ ใช้ค่าที่ประกาศไว้
-                            province: place['province'] ?? 'Unknown Province',
-                            description: place['description'] ??
-                                'No description available',
-                            latitude: place['latitude'] ??
-                                0.0, // เพิ่มข้อมูล latitude
-                            longitude: place['longitude'] ??
-                                0.0, // เพิ่มข้อมูล longitude
-                            place_id: place['id'],
-                            price: place['price'] ?? "ไม่ระบุ",
-                            phone: place['phone'] ??
-                                "", // เพิ่ม phone (ใช้ค่าเริ่มต้นหากไม่มี)
-                            placetyp: place['placetyp'] ??
-                                "", // เพิ่ม placetyp (ใช้ค่าเริ่มต้นหากไม่มี)
-                            refreshCallback: () {
-                              _refreshController
-                                  .add(null); // ✅ อัปเดตค่าแบบเรียลไทม์
-                            },
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ViewsPage(
+                              category: widget.category,
+                              imageUrl: List<String>.from(place['images']),
+                              name: place['name'],
+                              rating: rating, // ✅ ใช้ค่าที่ประกาศไว้
+                              reviewCount: reviewCount, // ✅ ใช้ค่าที่ประกาศไว้
+                              province: place['province'] ?? 'Unknown Province',
+                              description: place['description'] ??
+                                  'No description available',
+                              latitude: place['latitude'] ??
+                                  0.0, // เพิ่มข้อมูล latitude
+                              longitude: place['longitude'] ??
+                                  0.0, // เพิ่มข้อมูล longitude
+                              place_id: place['id'],
+                              price: place['price'] ?? "ไม่ระบุ",
+                              phone: place['phone'] ??
+                                  "", // เพิ่ม phone (ใช้ค่าเริ่มต้นหากไม่มี)
+                              placetyp: place['placetyp'] ??
+                                  "", // เพิ่ม placetyp (ใช้ค่าเริ่มต้นหากไม่มี)
+                              refreshCallback: () {
+                                _refreshController
+                                    .add(null); // ✅ อัปเดตค่าแบบเรียลไทม์
+                              },
+                            ),
                           ),
-                        ),
-                      ).then((_) {
-                        // ✅ ดึงข้อมูลจาก API ใหม่เมื่อย้อนกลับมา
-                        fetchPlaces();
-                      });
-                    },
-                    child: PlaceCard(
-                      name: place['name'],
-                      imageUrl: imageUrl,
-                      rating: (place['averageRating'] as num?)?.toDouble() ??
-                          0.0, // ⭐ เพิ่มตรงนี้
-                      reviewCount: place['reviewCount'] ?? 0, // ⭐ เพิ่มตรงนี้
-                    ),
-                  );
-                },
+                        ).then((_) {
+                          // ✅ ดึงข้อมูลจาก API ใหม่เมื่อย้อนกลับมา
+                          fetchPlaces();
+                        });
+                      },
+                      child: PlaceCard(
+                        name: place['name'],
+                        imageUrl: imageUrl,
+                        rating: (place['averageRating'] as num?)?.toDouble() ??
+                            0.0, // ⭐ เพิ่มตรงนี้
+                        reviewCount: place['reviewCount'] ?? 0, // ⭐ เพิ่มตรงนี้
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
+      ),
     );
   }
 }

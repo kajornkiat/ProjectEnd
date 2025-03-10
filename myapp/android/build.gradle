@@ -1,3 +1,15 @@
+buildscript {
+    repositories {  // ✅ เพิ่ม repositories ที่นี่
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.1.0" // ✅ แนะนำให้ใช้เวอร์ชันเดียวกับ settings.gradle
+        classpath "com.google.gms:google-services:4.4.2"
+    }
+}
+
 allprojects {
     repositories {
         google()

@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:myapp/friendprofile.dart';
+import 'package:myapp/profile.dart';
 
 class ViewsPage extends StatefulWidget {
   final String category;
@@ -328,9 +330,54 @@ class _ViewsPageState extends State<ViewsPage> {
     }
   }
 
+  void navigateToProfileOrFriendProfile(int reviewUserId, String fullname,
+      String profileImageUrl, String backgroundImageUrl, String status) {
+    if (reviewUserId == currentUserId) {
+      // ถ้าเป็นผู้ใช้ที่ล็อกอินอยู่ ให้ไปหน้า profile.dart
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(userId: currentUserId!),
+        ),
+      );
+    } else {
+      // ถ้าไม่ใช่ผู้ใช้ที่ล็อกอินอยู่ ให้ไปหน้า friendprofile.dart
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FriendProfilePage(
+            userId: reviewUserId,
+            currentUserId: currentUserId!,
+            fullname: fullname,
+            profileImageUrl: profileImageUrl,
+            backgroundImageUrl: backgroundImageUrl,
+            status: status,
+          ),
+        ),
+      );
+    }
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      // แปลง string เป็น DateTime object
+      DateTime dateTime = DateTime.parse(dateString);
+
+      // จัดรูปแบบวันที่ให้อ่านง่ายขึ้น
+      String formattedDate =
+          "${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}";
+
+      return formattedDate;
+    } catch (e) {
+      print("Error formatting date: $e");
+      return dateString; // หากไม่สามารถจัดรูปแบบได้ ให้คืนค่าเดิม
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 248, 248, 245),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -561,24 +608,64 @@ class _ViewsPageState extends State<ViewsPage> {
                           final isOwner = review['user_id'] ==
                               currentUserId; // เช็คว่าเป็นเจ้าของรีวิวไหม
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: review['profile_image'] != null
-                                  ? NetworkImage(
-                                      'http://192.168.242.162:3000${review['profile_image']}')
-                                  : AssetImage(
-                                          'assets/images/default_profile.png')
-                                      as ImageProvider,
-                              backgroundColor: Colors.grey[300],
+                            leading: GestureDetector(
+                              onTap: () {
+                                navigateToProfileOrFriendProfile(
+                                  review['user_id'],
+                                  review['fullname'] ?? 'Unknown User',
+                                  review['profile_image'] != null
+                                      ? 'http://192.168.242.162:3000${review['profile_image']}'
+                                      : '',
+                                  review['background_image'] != null
+                                      ? 'http://192.168.242.162:3000${review['background_image']}'
+                                      : '',
+                                  review['status'], // ใส่ status หากมี
+                                );
+                              },
+                              child: CircleAvatar(
+                                backgroundImage: review['profile_image'] != null
+                                    ? NetworkImage(
+                                        'http://192.168.242.162:3000${review['profile_image']}')
+                                    : AssetImage(
+                                            'assets/images/default_profile.png')
+                                        as ImageProvider,
+                              ),
                             ),
-                            title: Text(
-                              review['fullname'],
-                              maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
-                              overflow: TextOverflow
-                                  .ellipsis, // แสดง ... หากข้อความยาวเกิน
-                              style: TextStyle(
-                                fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
-                                fontWeight: FontWeight
-                                    .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                            title: GestureDetector(
+                              onTap: () {
+                                navigateToProfileOrFriendProfile(
+                                  review['user_id'],
+                                  review['fullname'] ?? 'Unknown User',
+                                  review['profile_image'] != null
+                                      ? 'http://192.168.242.162:3000${review['profile_image']}'
+                                      : '',
+                                  review['background_image'] != null
+                                      ? 'http://192.168.242.162:3000${review['background_image']}'
+                                      : '',
+                                  review['status'] ?? '', // ใส่ status หากมี
+                                );
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    review['fullname'] ?? 'Unknown User',
+                                    style:
+                                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  // ✅ เพิ่ม Text เพื่อแสดงวันที่
+                                  if (review['created_at'] != null)
+                                    Text(
+                                      _formatDate(
+                                          review['created_at']), // จัดรูปแบบวันที่
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             subtitle: Column(

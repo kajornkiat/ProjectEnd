@@ -41,7 +41,8 @@ CREATE TABLE messages (
     receiver_id INT REFERENCES users(id) ON DELETE CASCADE,
     message TEXT,  
     message_type VARCHAR(10) CHECK (message_type IN ('text', 'image')), -- ประเภทของข้อความ
-    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok')
+    created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok'),
+    is_unread BOOLEAN DEFAULT true
 );
 
 CREATE TABLE post (
@@ -49,7 +50,7 @@ CREATE TABLE post (
     user_id INTEGER NOT NULL,             
     province VARCHAR(100) NOT NULL,        
     description TEXT,                      
-    image TEXT,                            
+    images TEXT[],                            
     date TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok'),  
     CONSTRAINT fk_user
         FOREIGN KEY (user_id)             

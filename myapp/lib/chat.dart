@@ -6,8 +6,13 @@ import 'ChatDetailPage.dart';
 
 class ChatPage extends StatefulWidget {
   final int currentUserId;
+  final Function(int)? onMarkAsRead; // เพิ่ม callback นี้
 
-  const ChatPage({super.key, required this.currentUserId});
+  const ChatPage({
+    super.key,
+    required this.currentUserId,
+    this.onMarkAsRead, // เพิ่ม callback นี้
+  });
 
   @override
   _ChatPageState createState() => _ChatPageState();
@@ -20,6 +25,7 @@ class _ChatPageState extends State<ChatPage> {
   List<Map<String, dynamic>> filteredFriends = [];
   List<Map<String, dynamic>> chatHistory = [];
   bool isLoading = false;
+  Map<int, bool> unreadMessages = {};
 
   @override
   void initState() {
@@ -53,6 +59,7 @@ class _ChatPageState extends State<ChatPage> {
 
       if (mounted) {
         setState(() {
+          unreadMessages[friendId] = true;
           int existingChatIndex =
               chatHistory.indexWhere((chat) => chat['id'] == friendId);
           if (existingChatIndex != -1) {
@@ -77,6 +84,10 @@ class _ChatPageState extends State<ChatPage> {
             }
           }
         });
+      }
+      // 🔥 เรียก callback เพื่ออัปเดตจำนวนข้อความที่ยังไม่ได้อ่าน
+      if (widget.onMarkAsRead != null) {
+        widget.onMarkAsRead!(friendId);
       }
     });
 
@@ -141,6 +152,9 @@ class _ChatPageState extends State<ChatPage> {
                     return null;
                   }
                   uniqueIds.add(friendId);
+                  if (item['is_unread'] == true) {
+                    unreadMessages[friendId] = true;
+                  }
                   return {
                     'id': friendId,
                     'fullname': item['fullname'] ?? 'Unknown',
@@ -168,143 +182,200 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> markMessagesAsRead(int friendId) async {
+    final url = 'http://192.168.242.162:3000/api/chat/markAsRead';
+    final body = {
+      'user_id': widget.currentUserId,
+      'friend_id': friendId,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Messages marked as read for friendId: $friendId");
+      } else {
+        print("❌ Failed to mark messages as read: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("⚠️ Error marking messages as read: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> displayList =
         searchController.text.isEmpty ? chatHistory : filteredFriends;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Chat")),
-      body: Column(
-        children: [
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
+      //appBar: AppBar(title: const Text("Chat")),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Color.fromARGB(5, 233, 173, 53),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 5,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: searchController,
+                  onChanged: (query) => fetchFriends(query: query),
+                  style: const TextStyle(color: Colors.black),
+                  decoration: const InputDecoration(
+                    hintText: "Search Friends",
+                    hintStyle: TextStyle(color: Colors.grey),
+                    prefixIcon: Icon(Icons.search, color: Colors.orange),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
-                ],
-              ),
-              child: TextField(
-                controller: searchController,
-                onChanged: (query) => fetchFriends(query: query),
-                style: const TextStyle(color: Colors.black),
-                decoration: const InputDecoration(
-                  hintText: "Search Friends",
-                  hintStyle: TextStyle(color: Colors.grey),
-                  prefixIcon: Icon(Icons.search, color: Colors.orange),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: fetchChatHistory, // ฟังก์ชันที่จะโหลดข้อมูลใหม่
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : displayList.isEmpty
-                      ? const Center(child: Text('No friends or chats found'))
-                      : ListView.builder(
-                          itemCount: displayList.length,
-                          itemBuilder: (context, index) {
-                            final user = displayList[index];
-                            final userId = user['id'] is int
-                                ? user['id']
-                                : int.tryParse(user['id'].toString()) ?? 0;
-                            print(
-                                "🟢 userId: $userId from ${user['id']}"); // ✅ Debug log
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: fetchChatHistory, // ฟังก์ชันที่จะโหลดข้อมูลใหม่
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : displayList.isEmpty
+                        ? const Center(child: Text('No friends or chats found'))
+                        : ListView.builder(
+                            itemCount: displayList.length,
+                            itemBuilder: (context, index) {
+                              final user = displayList[index];
+                              final userId = user['id'] is int
+                                  ? user['id']
+                                  : int.tryParse(user['id'].toString()) ?? 0;
+                              print(
+                                  "🟢 userId: $userId from ${user['id']}"); // ✅ Debug log
 
-                            String fullname = (user['fullname'] != null &&
-                                    user['fullname'].toString().isNotEmpty)
-                                ? user['fullname'].toString()
-                                : 'Unknown';
+                              String fullname = (user['fullname'] != null &&
+                                      user['fullname'].toString().isNotEmpty)
+                                  ? user['fullname'].toString()
+                                  : 'Unknown';
 
-                            String imageUrl = user['profile_image'] ?? '';
-                            if (imageUrl.isNotEmpty &&
-                                !imageUrl.startsWith('http')) {
-                              imageUrl = 'http://192.168.242.162:3000$imageUrl';
-                            }
+                              String imageUrl = user['profile_image'] ?? '';
+                              if (imageUrl.isNotEmpty &&
+                                  !imageUrl.startsWith('http')) {
+                                imageUrl =
+                                    'http://192.168.242.162:3000$imageUrl';
+                              }
 
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundImage: imageUrl.isNotEmpty
-                                      ? NetworkImage(imageUrl)
-                                      : const AssetImage(
-                                              'assets/images/default_profile.png')
-                                          as ImageProvider,
+                              return Container(
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
                                 ),
-                                title: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal:
-                                          16.0), // เพิ่มระยะห่างด้านซ้ายและขวา
-                                  child: Text(
-                                    user['fullname'] ?? 'Unknown User',
-                                    maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
-                                    overflow: TextOverflow
-                                        .ellipsis, // แสดง ... หากข้อความยาวเกิน
-                                    style: TextStyle(
-                                      fontSize: 16, // ปรับขนาดฟอนต์ตามต้องการ
-                                      fontWeight: FontWeight
-                                          .bold, // ปรับน้ำหนักฟอนต์ตามต้องการ
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundImage: imageUrl.isNotEmpty
+                                        ? NetworkImage(imageUrl)
+                                        : const AssetImage(
+                                                'assets/images/default_profile.png')
+                                            as ImageProvider,
+                                  ),
+                                  title: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal:
+                                            0.0), // เพิ่มระยะห่างด้านซ้ายและขวา
+                                    child: Text(
+                                      user['fullname'] ?? 'Unknown User',
+                                      maxLines: 1, // จำกัดให้แสดงเพียง 1 บรรทัด
+                                      overflow: TextOverflow
+                                          .ellipsis, // แสดง ... หากข้อความยาวเกิน
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: unreadMessages[userId] ==
+                                                true
+                                            ? FontWeight
+                                                .bold // ข้อความหนาหากมีข้อความใหม่
+                                            : FontWeight.normal,
+                                        color: unreadMessages[userId] == true
+                                            ? Colors
+                                                .black // สีเข้มหากมีข้อความใหม่
+                                            : Colors.grey[600],
+                                      ),
                                     ),
                                   ),
-                                ),
-                                onTap: () {
-                                  print(
-                                      "📢 Attempting to open chat with: ${user['id']} (${user['fullname']})"); // Debug Log
-
-                                  final userId = user['id'] is int
-                                      ? user['id']
-                                      : int.tryParse(user['id'].toString()) ??
-                                          0;
-                                  if (userId > 0) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ChatDetailPage(
-                                          currentUserId: widget.currentUserId,
-                                          friendId: userId,
-                                          name: user['fullname'] ?? 'Unknown',
-                                          avatar: imageUrl,
-                                          refreshChatList: fetchChatHistory,
-                                        ),
-                                      ),
-                                    );
-                                  } else {
+                                  subtitle: Text(
+                                    user['message'] ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: unreadMessages[userId] == true
+                                          ? Colors
+                                              .black // สีเข้มหากมีข้อความใหม่
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                  onTap: () {
                                     print(
-                                        "⚠️ Invalid user ID: ${user['id']} (Cannot open chat page)");
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                        ),
+                                        "📢 Attempting to open chat with: ${user['id']} (${user['fullname']})"); // Debug Log
+
+                                    final userId = user['id'] is int
+                                        ? user['id']
+                                        : int.tryParse(user['id'].toString()) ??
+                                            0;
+                                    if (userId > 0) {
+                                      setState(() {
+                                        unreadMessages[userId] = false;
+                                      });
+                                      markMessagesAsRead(userId);
+
+                                      // เรียก callback เพื่ออัปเดตจำนวนข้อความที่ยังไม่ได้อ่าน
+                                      if (widget.onMarkAsRead != null) {
+                                        widget.onMarkAsRead!(userId);
+                                      }
+
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ChatDetailPage(
+                                            currentUserId: widget.currentUserId,
+                                            friendId: userId,
+                                            name: user['fullname'] ?? 'Unknown',
+                                            avatar: imageUrl,
+                                            refreshChatList: fetchChatHistory,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      print(
+                                          "⚠️ Invalid user ID: ${user['id']} (Cannot open chat page)");
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
